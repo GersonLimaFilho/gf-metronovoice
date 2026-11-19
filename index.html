@@ -125,7 +125,7 @@ async function resume(){const c=createCtx();if(c.state!=='running')await c.resum
 async function loadVoices(){const c=createCtx();let loaded=0;
   const problems=[];
   await Promise.all(labels.map(async label=>{try{
-    const r=await fetch('assets/vozes/'+label+'.wav?v=7',{cache:'no-cache'});
+    const r=await fetch('assets/vozes/'+label+'.wav?v=20261119-novas-vozes',{cache:'no-cache'});
     if(!r.ok)throw new Error('HTTP '+r.status);
     const data=await r.arrayBuffer();
     voiceBuffers[label]=await c.decodeAudioData(data.slice(0));loaded++;
