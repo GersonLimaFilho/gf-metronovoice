@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="gf-release" content="beta16-20261120">
 <meta name="theme-color" content="#111827">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="GF MetronoVoice">
@@ -77,6 +78,10 @@ body{background:radial-gradient(ellipse 75% 30% at 50% 0%,#413500 0,#15120a 45%,
 .tap-btn{flex:1.28 1 0!important;background:linear-gradient(180deg,#ffe25e,#ffcb00)!important;color:#0b0b0b!important;border-color:#f5cf2a!important;font-size:14px!important;font-weight:950!important;letter-spacing:.4px;box-shadow:0 2px 9px #ffd00035}
 .tap-btn:active,.tap-btn.tapping{background:#fff3a6!important;transform:scale(.96)}
 @media(max-width:370px){.controls{gap:4px}.controls .circle{font-size:17px}.tap-btn{font-size:12px!important}}
+
+/* Beta 16: discrete offline/update banner, collapsed by default */
+.gf-pwa-status{display:none;align-items:center;justify-content:space-between;gap:8px;margin:5px 0 7px;padding:7px 9px;border:1px solid #66551d;border-radius:10px;background:#15150d;color:#f5d866;font-size:11px;font-weight:700;line-height:1.3}
+.gf-pwa-status.visible{display:flex}.gf-pwa-status .msg{flex:1}.gf-pwa-status button{border:1px solid #f0c833;border-radius:7px;background:#f5cf26;color:#13110a;font-size:11px;font-weight:850;padding:6px 9px;white-space:nowrap}.gf-pwa-status button[hidden]{display:none}
 </style>
 </head>
 <body><main class="app">
@@ -92,6 +97,7 @@ body{background:radial-gradient(ellipse 75% 30% at 50% 0%,#413500 0,#15120a 45%,
 <div class="actions"><button id="play" class="primary">▶ Iniciar</button><button id="stop" class="secondary">■ Parar</button></div><div id="transportStatus" class="status" role="status">Pronto para tocar.</div></section>
 
 <div id="officialVoiceStatus" role="status" style="display:none" aria-hidden="true"></div>
+<div id="gfPwaBanner" class="gf-pwa-status" role="status" aria-live="polite"><span class="msg" id="gfPwaMessage">Preparando o modo offline…</span><button id="gfPwaAction" type="button" hidden>Atualizar</button></div>
 <p class="footer">GF MetronoVoice · desenvolvido por Gerson Lima Filho</p>
 </main>
 <script>
@@ -211,18 +217,80 @@ async function start(){try{await resume();if(running)return;if($('#audioMode').v
 function stop(){running=false;clearInterval(scheduler);cancelAnimationFrame(raf);flashQueue=[];for(const source of activeSources){try{source.stop()}catch(e){}}activeSources=new Set();for(let i=0;i<4;i++)$('#beat'+i).classList.remove('active','eighth');$('#play').textContent='▶ Iniciar';status('Parado.')}
 $('#play').onclick=()=>running?stop():start();$('#stop').onclick=stop;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&running)stop()});
-// Download the voice package silently; audio decoding occurs on first Play to respect Safari activation.
-if('serviceWorker' in navigator){
-  let refreshPending=false;
-  navigator.serviceWorker.addEventListener('controllerchange',()=>{
-    if(refreshPending)return;
-    refreshPending=true;
+// GF MetronoVoice PWA - Beta 16. Core metronome/audio code above is unchanged.
+const GF_RELEASE = 'beta16-20261120';
+const pwaBanner = $('#gfPwaBanner'), pwaMessage=$('#gfPwaMessage'), pwaAction=$('#gfPwaAction');
+let pwaBusy=false, pwaUpdateWaiting=false;
+function pwaShow(msg,actionLabel){
+  pwaMessage.textContent=msg;
+  pwaAction.hidden=!actionLabel;
+  if(actionLabel)pwaAction.textContent=actionLabel;
+  pwaBanner.classList.add('visible');
+}
+function pwaHide(){pwaBanner.classList.remove('visible')}
+function msgToWorker(type, extra={}){
+  return new Promise((resolve,reject)=>{
+    const target=navigator.serviceWorker.controller;
+    if(!target){reject(new Error('O aplicativo ainda está ativando o modo offline.'));return;}
+    const channel=new MessageChannel();
+    const timeout=setTimeout(()=>{channel.port1.close();reject(new Error('Tempo limite da verificação offline.'))},55000);
+    channel.port1.onmessage=e=>{clearTimeout(timeout);channel.port1.close();const data=e.data||{};data.ok?resolve(data):reject(new Error(data.error||'Erro ao salvar arquivos offline.'))};
+    target.postMessage({type,...extra},[channel.port2]);
+  });
+}
+async function pwaReady(){
+  if(!('serviceWorker' in navigator))return;
+  try{
+    await navigator.serviceWorker.ready;
+    if(!navigator.serviceWorker.controller)return;
+    const result=await msgToWorker('OFFLINE_STATUS');
+    if(result.ready){pwaShow('✓ Offline pronto · voz e metrônomo disponíveis');setTimeout(()=>{if(!pwaUpdateWaiting&&!pwaBusy)pwaHide()},4200)}
+    else if(navigator.onLine){pwaShow('Baixando arquivos para usar sem internet…'); await pwaDownload();}
+    else pwaShow('Modo offline incompleto. Conecte-se à internet para concluir.');
+  }catch(err){if(!navigator.onLine)pwaShow('Não foi possível confirmar o modo offline.');else pwaShow('Offline pendente · '+err.message,'Tentar novamente')}
+}
+async function pwaDownload(){
+  if(pwaBusy)return;pwaBusy=true;
+  try{await msgToWorker('PREPARE_OFFLINE');pwaShow('✓ Offline pronto · 7 vozes armazenadas');setTimeout(()=>{if(!pwaUpdateWaiting)pwaHide()},4200)}
+  catch(e){pwaShow('Offline incompleto: '+e.message,'Tentar novamente')}
+  finally{pwaBusy=false}
+}
+async function pwaCheckUpdate(){
+  if(!navigator.onLine||!('serviceWorker' in navigator))return;
+  try{
+    // Special query bypasses the service worker's cache, allowing fresh version checks.
+    const response=await fetch('/index.html?gf-check='+Date.now(),{cache:'no-store'});
+    if(!response.ok)return;
+    const text=await response.text();
+    const found=text.match(/<meta\s+name=["']gf-release["']\s+content=["']([^"']+)/i);
+    if(found && found[1]!==GF_RELEASE){pwaUpdateWaiting=true;pwaShow('Nova versão do GF MetronoVoice disponível','Atualizar')}
+  }catch(e){}
+}
+pwaAction.addEventListener('click',async()=>{
+  if(pwaBusy)return;
+  if(!pwaUpdateWaiting){await pwaDownload();return;}
+  pwaBusy=true;pwaAction.disabled=true;
+  pwaShow('Atualizando aplicativo e vozes…');
+  try{
+    // Do not interrupt the user while the metronome is playing.
+    if(running){pwaShow('Termine a reprodução e toque em Atualizar','Atualizar');return;}
+    await msgToWorker('APPLY_UPDATE');
     window.location.reload();
+  }catch(e){pwaShow('Falha na atualização: '+e.message,'Tentar novamente')}
+  finally{pwaBusy=false;pwaAction.disabled=false}
+});
+if('serviceWorker' in navigator){
+  window.addEventListener('load',async()=>{
+    try{
+      await navigator.serviceWorker.register('service-worker.js',{updateViaCache:'none'});
+      await navigator.serviceWorker.ready;
+      if(!navigator.serviceWorker.controller){
+        navigator.serviceWorker.addEventListener('controllerchange',()=>{pwaReady();pwaCheckUpdate()},{once:true});
+      }else{await pwaReady(); await pwaCheckUpdate();}
+    }catch(e){pwaShow('Não foi possível ativar o modo offline.');}
   });
-  window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('service-worker.js',{updateViaCache:'none'})
-      .then(reg=>reg.update()).catch(err=>console.warn('Atualização offline:',err));
-  });
+  window.addEventListener('online',()=>{pwaReady();pwaCheckUpdate()});
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)pwaCheckUpdate()});
 }
 })();
 </script></body></html>
