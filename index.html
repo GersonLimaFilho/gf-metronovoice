@@ -70,12 +70,19 @@ body{background:radial-gradient(ellipse 75% 30% at 50% 0%,#413500 0,#15120a 45%,
 .count-title{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .challenge-btn{border:1px solid #7c6a28;background:#211e13;color:#ffe28b;border-radius:9px;padding:6px 9px;font-size:12px;font-weight:800;white-space:nowrap}
 .challenge-btn[aria-pressed="true"]{background:#ffcf00;color:#191400}
+
+/* GF MetronoVoice Beta 15: TAP BPM */
+.controls{gap:6px;flex-wrap:nowrap}
+.controls .circle{min-width:0;flex:1 1 0;padding:0 3px}
+.tap-btn{flex:1.28 1 0!important;background:linear-gradient(180deg,#ffe25e,#ffcb00)!important;color:#0b0b0b!important;border-color:#f5cf2a!important;font-size:14px!important;font-weight:950!important;letter-spacing:.4px;box-shadow:0 2px 9px #ffd00035}
+.tap-btn:active,.tap-btn.tapping{background:#fff3a6!important;transform:scale(.96)}
+@media(max-width:370px){.controls{gap:4px}.controls .circle{font-size:17px}.tap-btn{font-size:12px!important}}
 </style>
 </head>
 <body><main class="app">
 <header class="brand"><img class="brand-logo" src="assets/gf-metronovoice-logo.png" alt="GF MetronoVoice"><small>SUA VOZ. SEU TEMPO.</small></header>
 <section class="panel tempo"><div class="label">Andamento</div><div class="bpm" id="bpmText">80 <span>BPM</span></div>
-<div class="controls"><button class="circle" id="minus5" aria-label="Diminuir 5 BPM">−5</button><button class="circle" id="minus1" aria-label="Diminuir 1 BPM">−</button><button class="circle" id="plus1" aria-label="Aumentar 1 BPM">+</button><button class="circle" id="plus5" aria-label="Aumentar 5 BPM">+5</button></div>
+<div class="controls"><button class="circle" id="minus5" aria-label="Diminuir 5 BPM">−5</button><button class="circle" id="minus1" aria-label="Diminuir 1 BPM">−</button><button class="circle tap-btn" id="tapBpm" aria-label="TAP BPM: toque no ritmo da música" title="Toque no ritmo da música para calcular o BPM">TAP</button><button class="circle" id="plus1" aria-label="Aumentar 1 BPM">+</button><button class="circle" id="plus5" aria-label="Aumentar 5 BPM">+5</button></div>
 <input id="bpmRange" class="tempoInput" type="range" min="30" max="240" step="1" value="80" aria-label="BPM">
 <div class="label" style="margin-top:12px">Compasso 4/4</div><div class="beatrow" aria-label="Indicadores dos tempos"><div class="beat" id="beat0">1</div><div class="beat" id="beat1">2</div><div class="beat" id="beat2">3</div><div class="beat" id="beat3">4</div></div>
 <div class="count-zone"><div class="count-title"><div class="label">Contagem falada</div><button id="challenge" class="challenge-btn" type="button" aria-pressed="false">🏆 Desafio OFF</button></div><div class="subdiv subdiv3"><button class="option selected" data-mode="quarter">1 · 2 · 3 · 4</button><button class="option" data-mode="eighth">1 e 2 e 3 e 4 e</button><button class="option" data-mode="sixteenth">1 i e a</button></div>
@@ -113,6 +120,29 @@ const voiceStatus=t=>$('#officialVoiceStatus').textContent=t;
 function saveSettings(){try{localStorage.setItem(settingsKey,JSON.stringify({bpm,mode,audioMode:$('#audioMode').value,accent:$('#accent').checked,voiceVolume:$('#voiceVolume').value,clickVolume:$('#clickVolume').value,iVolume:$('#iVolume').value,aVolume:$('#aVolume').value}))}catch(e){}}
 function setBpm(v){bpm=Math.max(30,Math.min(240,Math.round(Number(v)||80)));$('#bpmText').innerHTML=bpm+' <span>BPM</span>';$('#bpmRange').value=bpm;saveSettings()}
 function setMode(m){mode=m;for(const el of document.querySelectorAll('[data-mode]'))el.classList.toggle('selected',el.dataset.mode===m);saveSettings();if(running){stop();start()}}
+// TAP BPM: calcula a pulsação sem interferir no motor de áudio ou no Desafio.
+let tapLast=0, tapIntervals=[];
+const tapButton=$('#tapBpm');
+tapButton.addEventListener('click',()=>{
+  const now=performance.now();
+  const elapsed=now-tapLast;
+  // Um intervalo longo começa uma nova medição; toques duplos acidentais são ignorados.
+  if(!tapLast||elapsed>2000){tapIntervals=[];tapLast=now;tapButton.classList.add('tapping');tapButton.textContent='TAP';return}
+  if(elapsed<150)return;
+  tapLast=now;
+  tapIntervals.push(elapsed);
+  if(tapIntervals.length>5)tapIntervals.shift();
+  // Média dos intervalos recentes: mais estável que usar apenas os dois últimos toques.
+  const sorted=[...tapIntervals].sort((a,b)=>a-b);
+  const intervals=sorted.length>=4?sorted.slice(1,-1):sorted;
+  const avg=intervals.reduce((sum,val)=>sum+val,0)/intervals.length;
+  const calculated=Math.round(60000/avg);
+  setBpm(calculated);
+  tapButton.textContent='TAP';
+  tapButton.classList.add('tapping');
+  clearTimeout(tapButton._tapFlash);
+  tapButton._tapFlash=setTimeout(()=>tapButton.classList.remove('tapping'),120);
+});
 $('#bpmRange').oninput=e=>setBpm(e.target.value);[['minus5',-5],['minus1',-1],['plus1',1],['plus5',5]].forEach(([id,n])=>$('#'+id).onclick=()=>setBpm(bpm+n));
 for(const bt of document.querySelectorAll('[data-mode]'))bt.onclick=()=>setMode(bt.dataset.mode);
 for(const id of ['audioMode','accent','voiceVolume','clickVolume','iVolume','aVolume'])$('#'+id).onchange=saveSettings;
