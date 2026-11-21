@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="gf-release" content="beta16-20261120">
+<meta name="gf-release" content="beta17-20261121-click">
 <meta name="theme-color" content="#111827">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="GF MetronoVoice">
@@ -92,7 +92,7 @@ body{background:radial-gradient(ellipse 75% 30% at 50% 0%,#413500 0,#15120a 45%,
 <div class="label" style="margin-top:12px">Compasso 4/4</div><div class="beatrow" aria-label="Indicadores dos tempos"><div class="beat" id="beat0">1</div><div class="beat" id="beat1">2</div><div class="beat" id="beat2">3</div><div class="beat" id="beat3">4</div></div>
 <div class="count-zone"><div class="count-title"><div class="label">Contagem falada</div><button id="challenge" class="challenge-btn" type="button" aria-pressed="false">🏆 Desafio OFF</button></div><div class="subdiv subdiv3"><button class="option selected" data-mode="quarter">1 · 2 · 3 · 4</button><button class="option" data-mode="eighth">1 e 2 e 3 e 4 e</button><button class="option" data-mode="sixteenth">1 i e a</button></div>
 <div class="compact-settings"><label>Áudio <select id="audioMode"><option value="voice">Voz</option><option value="click">Clique</option><option value="both">Voz + Clique</option></select></label><label class="precheck"><input type="checkbox" id="accent" checked> Acentuar 1</label></div>
-<div class="volumes"><label>Voz <input id="voiceVolume" type="range" min="0" max="100" value="90" aria-label="Volume da voz"></label><label>Clique <input id="clickVolume" type="range" min="0" max="100" value="65" aria-label="Volume do clique"></label></div>
+<div class="volumes"><label>Voz <input id="voiceVolume" type="range" min="0" max="100" value="90" aria-label="Volume da voz"></label><label>Clique <input id="clickVolume" type="range" min="0" max="100" value="90" aria-label="Volume do clique"></label></div>
 <details class="syllable-details" id="syllableDetails"><summary>♪ Ajustar volume do “i” e do “a”</summary><div class="syllable-volume-row"><label for="iVolume">i <input id="iVolume" type="range" min="0" max="200" step="5" value="100" aria-label="Volume relativo da sílaba i"><output id="iVolumeText" for="iVolume">100%</output></label><label for="aVolume">a <input id="aVolume" type="range" min="0" max="200" step="5" value="100" aria-label="Volume relativo da sílaba a"><output id="aVolumeText" for="aVolume">100%</output></label></div></details></div>
 <div class="actions"><button id="play" class="primary">▶ Iniciar</button><button id="stop" class="secondary">■ Parar</button></div><div id="transportStatus" class="status" role="status">Pronto para tocar.</div></section>
 
@@ -170,7 +170,24 @@ async function loadVoices(){const c=createCtx();let loaded=0;
   voiceStatus('✓ Voz oficial GF pronta · 7 sílabas');return true;
 }
 function ensureVoices(){if(!voiceReady)voiceReady=loadVoices().catch(err=>{voiceReady=null;throw err});return voiceReady}
-function clickAt(t,strong=false){const amount=Number($('#clickVolume').value)/100;if(amount<=0)return;const osc=ctx.createOscillator(),gain=ctx.createGain();osc.type='sine';osc.frequency.setValueAtTime(strong?1320:880,t);gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(.25*amount,t+.003);gain.gain.exponentialRampToValueAtTime(.0001,t+.065);osc.connect(gain).connect(ctx.destination);osc.start(t);osc.stop(t+.08);activeSources.add(osc);osc.onended=()=>activeSources.delete(osc)}
+// Beta 17: clique mais presente, sem alterar amostras de voz ou metrônomo.
+// Triangular tem mais harmônicos do que senoidal: melhor audibilidade em celular.
+// Envelope curto evita embolo nas subdivisões rápidas; pico limitado a < 1.
+function clickAt(t,strong=false){
+  const amount=Number($('#clickVolume').value)/100;
+  if(amount<=0)return;
+  const osc=ctx.createOscillator(),gain=ctx.createGain();
+  osc.type='triangle';
+  osc.frequency.setValueAtTime(strong?1480:1030,t);
+  const peak=Math.min(.97,(strong?.95:.82)*amount);
+  const end=t+.090;
+  gain.gain.setValueAtTime(.0001,t);
+  gain.gain.exponentialRampToValueAtTime(Math.max(.0002,peak),t+.002);
+  gain.gain.exponentialRampToValueAtTime(.0001,end);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(t);osc.stop(end+.004);
+  activeSources.add(osc);osc.onended=()=>activeSources.delete(osc);
+}
 // Beta 8: preserva a afinação natural das sete gravações.
 // A duração é limitada à janela rítmica SEM alterar playbackRate.
 // O fade curto suaviza o recorte para evitar embolo e estalos.
@@ -218,7 +235,7 @@ function stop(){running=false;clearInterval(scheduler);cancelAnimationFrame(raf)
 $('#play').onclick=()=>running?stop():start();$('#stop').onclick=stop;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&running)stop()});
 // GF MetronoVoice PWA - Beta 16. Core metronome/audio code above is unchanged.
-const GF_RELEASE = 'beta16-20261120';
+const GF_RELEASE = 'beta17-20261121-click';
 const pwaBanner = $('#gfPwaBanner'), pwaMessage=$('#gfPwaMessage'), pwaAction=$('#gfPwaAction');
 let pwaBusy=false, pwaUpdateWaiting=false;
 function pwaShow(msg,actionLabel){
