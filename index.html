@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="gf-release" content="beta19-20261124-audio-restaurado">
+<meta name="gf-release" content="beta20-20261124-microfone-ios">
 <meta name="theme-color" content="#111827">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="GF MetronoVoice">
@@ -358,6 +358,11 @@ async function startDetect(){
   detectMessage('Solicitando permissão do microfone…');
   let stream=null, ac=null;
   try{
+    // Safari/iOS: playback bloqueia getUserMedia. Durante a captura, use
+    // explicitamente uma categoria que aceita microfone.
+    if(navigator.audioSession){
+      try{navigator.audioSession.type='play-and-record'}catch(e){}
+    }
     stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false});
     const AudioContextClass=window.AudioContext||window.webkitAudioContext;
     ac=new AudioContextClass();await ac.resume();
@@ -381,7 +386,11 @@ async function startDetect(){
     s.timer=setTimeout(()=>{if(detectSession===s)finishDetect(false)},10000);
   }catch(err){
     try{stream?.getTracks().forEach(t=>t.stop())}catch(e){}
-    try{ac?.close()}catch(e){}
+    try{await ac?.close()}catch(e){}
+    // Se a permissão falhar ou a captura não iniciar, restaure o áudio
+    // também nesse caminho de erro.
+    detectorAudioRestoration=restoreMetronomeOutput();
+    try{await detectorAudioRestoration}catch(e){}
     detectGo.disabled=false;detectGo.textContent='🎙 Escutar 10 s';
     detectMessage(err.name==='NotAllowedError'?'Microfone bloqueado. Permita o acesso nas configurações do navegador.':'Não foi possível acessar o microfone: '+(err.message||err));
   }
@@ -399,7 +408,7 @@ $('#detectApply').onclick=()=>{if(detectEstimate){setBpm(detectEstimate);detectM
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&detectSession)finishDetect(true)});
 
 // GF MetronoVoice PWA - Beta 16. Core metronome/audio code above is unchanged.
-const GF_RELEASE = 'beta19-20261124-audio-restaurado';
+const GF_RELEASE = 'beta20-20261124-microfone-ios';
 const pwaBanner = $('#gfPwaBanner'), pwaMessage=$('#gfPwaMessage'), pwaAction=$('#gfPwaAction');
 let pwaBusy=false, pwaUpdateWaiting=false;
 function pwaShow(msg,actionLabel){
