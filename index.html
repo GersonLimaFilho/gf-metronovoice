@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="gf-release" content="beta17-20261121-click">
+<meta name="gf-release" content="beta18-20261124-detector">
 <meta name="theme-color" content="#111827">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="GF MetronoVoice">
@@ -82,6 +82,23 @@ body{background:radial-gradient(ellipse 75% 30% at 50% 0%,#413500 0,#15120a 45%,
 /* Beta 16: discrete offline/update banner, collapsed by default */
 .gf-pwa-status{display:none;align-items:center;justify-content:space-between;gap:8px;margin:5px 0 7px;padding:7px 9px;border:1px solid #66551d;border-radius:10px;background:#15150d;color:#f5d866;font-size:11px;font-weight:700;line-height:1.3}
 .gf-pwa-status.visible{display:flex}.gf-pwa-status .msg{flex:1}.gf-pwa-status button{border:1px solid #f0c833;border-radius:7px;background:#f5cf26;color:#13110a;font-size:11px;font-weight:850;padding:6px 9px;white-space:nowrap}.gf-pwa-status button[hidden]{display:none}
+
+/* Beta 18: detector BPM por microfone, painel discreto e responsivo */
+.detect-row{display:flex;justify-content:center;margin:6px 0 1px}
+.detect-trigger{border:1px solid #b69b2e;background:#1e1a0d;border-radius:10px;color:#ffe057;padding:7px 12px;font-size:12px;font-weight:850;min-height:35px}
+.detect-trigger[aria-expanded="true"]{background:#3b310f}
+.detect-panel{border:1px solid #685723;border-radius:11px;padding:10px;margin:7px 0;background:#15140e;display:none;text-align:left}
+.detect-panel.open{display:block}
+.detect-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.detect-go,.detect-apply{background:#ffcf16;color:#0d0c07;border:0;border-radius:9px;padding:9px 12px;font-size:12px;font-weight:900}
+.detect-stop{border:1px solid #776938;background:#292412;color:#ffe49a;padding:8px 11px;border-radius:9px;font-size:12px;font-weight:750}
+.detect-status{font-size:11px;color:#e2d4a5;line-height:1.4;flex:1;min-width:120px}
+.detect-result{display:none;align-items:center;gap:7px;flex-wrap:wrap;margin-top:8px}
+.detect-result.visible{display:flex}
+.detect-value{font-weight:950;color:#ffda20;font-size:19px}
+.detect-alt{border:1px solid #756323;color:#ffda20;background:#24200f;border-radius:8px;padding:7px 9px;font-weight:800;font-size:12px}
+.detect-alt:disabled{opacity:.35}
+@media(max-height:750px){.detect-row{margin:3px 0 0}.detect-trigger{min-height:29px;padding:4px 10px;font-size:11px}}
 </style>
 </head>
 <body><main class="app">
@@ -89,6 +106,11 @@ body{background:radial-gradient(ellipse 75% 30% at 50% 0%,#413500 0,#15120a 45%,
 <section class="panel tempo"><div class="label">Andamento</div><div class="bpm" id="bpmText">80 <span>BPM</span></div>
 <div class="controls"><button class="circle" id="minus5" aria-label="Diminuir 5 BPM">−5</button><button class="circle" id="minus1" aria-label="Diminuir 1 BPM">−</button><button class="circle tap-btn" id="tapBpm" aria-label="TAP BPM: toque no ritmo da música" title="Toque no ritmo da música para calcular o BPM">TAP</button><button class="circle" id="plus1" aria-label="Aumentar 1 BPM">+</button><button class="circle" id="plus5" aria-label="Aumentar 5 BPM">+5</button></div>
 <input id="bpmRange" class="tempoInput" type="range" min="30" max="240" step="1" value="80" aria-label="BPM">
+<div class="detect-row"><button id="detectToggle" class="detect-trigger" type="button" aria-expanded="false" aria-controls="detectPanel">🎙 Detectar BPM</button></div>
+<div class="detect-panel" id="detectPanel">
+ <div class="detect-head"><button class="detect-go" id="detectGo" type="button">🎙 Escutar 10 s</button><button class="detect-stop" id="detectCancel" type="button" hidden>Parar</button><span id="detectStatus" class="detect-status" role="status" aria-live="polite">Aponte o microfone para a música. O áudio não é enviado nem salvo.</span></div>
+ <div id="detectResult" class="detect-result"><span class="detect-value" id="detectBpm">-- BPM</span><button class="detect-alt" id="detectHalf" type="button">÷2</button><button class="detect-alt" id="detectDouble" type="button">×2</button><button class="detect-apply" id="detectApply" type="button">Usar BPM</button></div>
+</div>
 <div class="label" style="margin-top:12px">Compasso 4/4</div><div class="beatrow" aria-label="Indicadores dos tempos"><div class="beat" id="beat0">1</div><div class="beat" id="beat1">2</div><div class="beat" id="beat2">3</div><div class="beat" id="beat3">4</div></div>
 <div class="count-zone"><div class="count-title"><div class="label">Contagem falada</div><button id="challenge" class="challenge-btn" type="button" aria-pressed="false">🏆 Desafio OFF</button></div><div class="subdiv subdiv3"><button class="option selected" data-mode="quarter">1 · 2 · 3 · 4</button><button class="option" data-mode="eighth">1 e 2 e 3 e 4 e</button><button class="option" data-mode="sixteenth">1 i e a</button></div>
 <div class="compact-settings"><label>Áudio <select id="audioMode"><option value="voice">Voz</option><option value="click">Clique</option><option value="both">Voz + Clique</option></select></label><label class="precheck"><input type="checkbox" id="accent" checked> Acentuar 1</label></div>
@@ -234,8 +256,130 @@ async function start(){try{await resume();if(running)return;if($('#audioMode').v
 function stop(){running=false;clearInterval(scheduler);cancelAnimationFrame(raf);flashQueue=[];for(const source of activeSources){try{source.stop()}catch(e){}}activeSources=new Set();for(let i=0;i<4;i++)$('#beat'+i).classList.remove('active','eighth');$('#play').textContent='▶ Iniciar';status('Parado.')}
 $('#play').onclick=()=>running?stop():start();$('#stop').onclick=stop;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&running)stop()});
+// Beta 18: detecção estimada por periodicidade de transientes no microfone.
+// Não interfere com o motor do metrônomo. Nenhuma gravação é armazenada.
+const detectToggle=$('#detectToggle'), detectPanel=$('#detectPanel');
+const detectGo=$('#detectGo'), detectCancel=$('#detectCancel'), detectStatus=$('#detectStatus');
+const detectResult=$('#detectResult'), detectBpm=$('#detectBpm');
+let detectSession=null, detectEstimate=0;
+function detectMessage(t){detectStatus.textContent=t}
+function detectPresent(v){
+  detectEstimate=Math.round(v);
+  detectBpm.textContent=detectEstimate+' BPM';
+  $('#detectHalf').disabled=detectEstimate/2<30;
+  $('#detectDouble').disabled=detectEstimate*2>240;
+  detectResult.classList.add('visible');
+}
+function analyzeBeatEnvelope(energy){
+  // Envelope em blocos de 2048 amostras, a 48kHz aproximadamente.
+  const e=energy.map(x=>Math.sqrt(x));
+  if(e.length<75)return null;
+  const mean=e.reduce((a,b)=>a+b,0)/e.length;
+  const max=Math.max(...e);
+  if(max<0.002||mean<0.001)return null;
+  // Enfatiza os ataques e remove o nível estacionário dos instrumentos.
+  const novelty=e.map((v,i)=>i?Math.max(0,v-e[i-1]):0);
+  const smoothed=novelty.map((_,i)=>{let s=0;for(let j=-1;j<=1;j++)s+=novelty[Math.max(0,Math.min(novelty.length-1,i+j))];return s/3});
+  const baseline=smoothed.reduce((a,b)=>a+b,0)/smoothed.length;
+  const smooth=smoothed.map(v=>Math.max(0,v-baseline*.65));
+  if(Math.max(...smooth)<0.0008)return null;
+  const rate=detectSession.sampleRate/2048;
+  let best=[];
+  for(let bpmCandidate=55;bpmCandidate<=190;bpmCandidate++){
+    const lag=rate*60/bpmCandidate;
+    const scoreLag=(L)=>{
+      if(L<3||L>smooth.length/2)return 0;
+      let n=0,sum=0,p=0,q=0;
+      const k=Math.round(L);
+      for(let i=k;i<smooth.length;i++){
+        const a=smooth[i],b=smooth[i-k];sum+=a*b;p+=a*a;q+=b*b;n++;
+      }
+      return sum/Math.sqrt((p||1)*(q||1));
+    };
+    const score=scoreLag(lag)+.18*scoreLag(2*lag)+.10*scoreLag(lag/2);
+    best.push({bpm:bpmCandidate,score});
+  }
+  best.sort((a,b)=>b.score-a.score);
+  if(!best.length||best[0].score<.13)return null;
+  let dominant=best[0];
+  // Reduz jitter usando a média ponderada dos candidatos próximos.
+  const near=best.filter(x=>Math.abs(x.bpm-dominant.bpm)<=2);
+  let bpmResult=near.reduce((s,x)=>s+x.bpm*x.score,0)/near.reduce((s,x)=>s+x.score,0);
+  return {bpm:Math.round(bpmResult),confidence:dominant.score};
+}
+function releaseDetect(s){
+  if(!s)return;
+  clearInterval(s.progress);clearTimeout(s.timer);
+  try{s.source?.disconnect()}catch(e){}
+  try{s.highpass?.disconnect()}catch(e){}
+  try{s.processor?.disconnect()}catch(e){}
+  try{s.mute?.disconnect()}catch(e){}
+  try{s.stream?.getTracks().forEach(t=>t.stop())}catch(e){}
+  try{s.context?.close()}catch(e){}
+}
+function finishDetect(cancelled=false){
+  const s=detectSession;if(!s)return;
+  detectSession=null;releaseDetect(s);
+  detectGo.disabled=false;detectGo.textContent='🎙 Escutar 10 s';detectCancel.hidden=true;
+  if(cancelled){detectMessage('Análise interrompida.');return}
+  // Necessário passar a taxa do contexto original após liberá-lo.
+  detectSession={sampleRate:s.sampleRate};
+  let result;try{result=analyzeBeatEnvelope(s.energies)}catch(e){result=null}
+  detectSession=null;
+  if(!result){detectMessage('Não consegui identificar um pulso confiável. Aproxime o microfone da música e tente novamente.');return}
+  detectPresent(result.bpm);
+  detectMessage(result.confidence>=.35?'BPM estimado. Confira com o metrônomo.':'Estimativa com pouca confiança. Confira e teste também ÷2 ou ×2.');
+}
+async function startDetect(){
+  if(detectSession)return;
+  if(running)stop(); // não medir o próprio metrônomo
+  if(!navigator.mediaDevices?.getUserMedia){detectMessage('O microfone requer Safari/Chrome com HTTPS.');return}
+  detectResult.classList.remove('visible');detectGo.disabled=true;
+  detectMessage('Solicitando permissão do microfone…');
+  let stream=null, ac=null;
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false},video:false});
+    const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+    ac=new AudioContextClass();await ac.resume();
+    const source=ac.createMediaStreamSource(stream);
+    const highpass=ac.createBiquadFilter();highpass.type='highpass';highpass.frequency.value=70;
+    // ScriptProcessor é mantido pela compatibilidade com Safari/iOS antigos.
+    const processor=ac.createScriptProcessor(2048,1,1);
+    const mute=ac.createGain();mute.gain.value=0;
+    const s={stream,context:ac,source,highpass,processor,mute,energies:[],sampleRate:ac.sampleRate,progress:null,timer:null};
+    detectSession=s;
+    source.connect(highpass);highpass.connect(processor);processor.connect(mute);mute.connect(ac.destination);
+    processor.onaudioprocess=e=>{
+      if(detectSession!==s)return;
+      const samples=e.inputBuffer.getChannelData(0);
+      let sum=0;for(let i=0;i<samples.length;i++)sum+=samples[i]*samples[i];
+      s.energies.push(sum/samples.length);
+    };
+    const started=performance.now();
+    detectGo.textContent='Escutando…';detectCancel.hidden=false;
+    s.progress=setInterval(()=>{if(detectSession===s){const left=Math.max(0,Math.ceil(10-(performance.now()-started)/1000));detectMessage('Analisando a pulsação… '+left+' s')}} ,450);
+    s.timer=setTimeout(()=>{if(detectSession===s)finishDetect(false)},10000);
+  }catch(err){
+    try{stream?.getTracks().forEach(t=>t.stop())}catch(e){}
+    try{ac?.close()}catch(e){}
+    detectGo.disabled=false;detectGo.textContent='🎙 Escutar 10 s';
+    detectMessage(err.name==='NotAllowedError'?'Microfone bloqueado. Permita o acesso nas configurações do navegador.':'Não foi possível acessar o microfone: '+(err.message||err));
+  }
+}
+detectToggle.onclick=()=>{
+  const show=!detectPanel.classList.contains('open');
+  detectPanel.classList.toggle('open',show);detectToggle.setAttribute('aria-expanded',String(show));
+  if(!show&&detectSession)finishDetect(true);
+};
+detectGo.onclick=startDetect;
+detectCancel.onclick=()=>finishDetect(true);
+$('#detectHalf').onclick=()=>{if(detectEstimate/2>=30)detectPresent(detectEstimate/2)};
+$('#detectDouble').onclick=()=>{if(detectEstimate*2<=240)detectPresent(detectEstimate*2)};
+$('#detectApply').onclick=()=>{if(detectEstimate){setBpm(detectEstimate);detectMessage('BPM aplicado: '+detectEstimate+'. Aperte Iniciar para conferir.');detectPanel.classList.remove('open');detectToggle.setAttribute('aria-expanded','false')}};
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&detectSession)finishDetect(true)});
+
 // GF MetronoVoice PWA - Beta 16. Core metronome/audio code above is unchanged.
-const GF_RELEASE = 'beta17-20261121-click';
+const GF_RELEASE = 'beta18-20261124-detector';
 const pwaBanner = $('#gfPwaBanner'), pwaMessage=$('#gfPwaMessage'), pwaAction=$('#gfPwaAction');
 let pwaBusy=false, pwaUpdateWaiting=false;
 function pwaShow(msg,actionLabel){
