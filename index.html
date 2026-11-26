@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="gf-release" content="beta20-20261124-microfone-ios">
+<meta name="gf-release" content="beta22-20261125-atualizacao-corrigida">
 <meta name="theme-color" content="#111827">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="GF MetronoVoice">
@@ -427,7 +427,7 @@ $('#detectApply').onclick=()=>{if(detectEstimate){setBpm(detectEstimate);detectM
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&detectSession)finishDetect(true)});
 
 // GF MetronoVoice PWA - Beta 16. Core metronome/audio code above is unchanged.
-const GF_RELEASE = 'beta21-20261125-visual-bpm';
+const GF_RELEASE = 'beta22-20261125-atualizacao-corrigida';
 const pwaBanner = $('#gfPwaBanner'), pwaMessage=$('#gfPwaMessage'), pwaAction=$('#gfPwaAction');
 let pwaBusy=false, pwaUpdateWaiting=false;
 function pwaShow(msg,actionLabel){
@@ -472,7 +472,10 @@ async function pwaCheckUpdate(){
     if(!response.ok)return;
     const text=await response.text();
     const found=text.match(/<meta\s+name=["']gf-release["']\s+content=["']([^"']+)/i);
-    if(found && found[1]!==GF_RELEASE){pwaUpdateWaiting=true;pwaShow('Nova versão do GF MetronoVoice disponível','Atualizar')}
+    if(found){
+      if(found[1]!==GF_RELEASE){pwaUpdateWaiting=true;pwaShow('Nova versão do GF MetronoVoice disponível','Atualizar')}
+      else if(pwaUpdateWaiting){pwaUpdateWaiting=false;pwaHide()}
+    }
   }catch(e){}
 }
 pwaAction.addEventListener('click',async()=>{
@@ -484,6 +487,8 @@ pwaAction.addEventListener('click',async()=>{
     // Do not interrupt the user while the metronome is playing.
     if(running){pwaShow('Termine a reprodução e toque em Atualizar','Atualizar');return;}
     await msgToWorker('APPLY_UPDATE');
+    pwaUpdateWaiting=false;
+    pwaHide();
     window.location.reload();
   }catch(e){pwaShow('Falha na atualização: '+e.message,'Tentar novamente')}
   finally{pwaBusy=false;pwaAction.disabled=false}
