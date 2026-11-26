@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="gf-release" content="beta25-20261126-setlist-subdivisao-cache">
+<meta name="gf-release" content="beta26-20261126-progressivo">
 <meta name="theme-color" content="#111827">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="GF MetronoVoice">
@@ -149,6 +149,26 @@ body{background:radial-gradient(ellipse 75% 30% at 50% 0%,#413500 0,#15120a 45%,
 .setlist-file{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden}
 @media (max-width:390px){.setlist-body{padding:10px}.setlist-song{gap:4px;padding:7px}.setlist-song .song-move button{min-width:27px}.setlist-header{padding:10px 12px}}
 
+
+.progress-trigger{min-width:0;min-height:36px;border:1px solid #b89c32;border-radius:12px;background:#22200f;color:#ffe06a;font-size:12px;font-weight:850;padding:8px 8px;white-space:normal;line-height:1.1;text-align:center}
+.progress-launch{display:flex;gap:7px;justify-content:center;align-items:center;margin:7px 0 3px;flex-wrap:nowrap}
+.progress-launch .setlist-trigger{padding:8px 12px;min-width:0;font-size:12px}
+.progress-modal[hidden]{display:none!important}
+.progress-modal{position:fixed;inset:0;z-index:3500;background:rgba(0,0,0,.9);display:flex;align-items:center;justify-content:center;padding:12px max(12px,env(safe-area-inset-right)) 12px max(12px,env(safe-area-inset-left))}
+.progress-shell{background:#14130b;border:1px solid #aa8b23;color:#eee7cb;border-radius:16px;width:min(430px,100%);padding:15px;box-shadow:0 18px 60px #000b;max-height:calc(100dvh - 24px);overflow-y:auto}
+.progress-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:11px}
+.progress-head strong{color:#ffd524;font-size:17px}
+.progress-close{color:#ffe07c;background:#29220f;border:1px solid #716027;border-radius:9px;padding:4px 11px;font-size:21px;line-height:1.2}
+.progress-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.progress-field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#dfce92;font-weight:700}
+.progress-field input,.progress-field select{width:100%;font:inherit;color:#fff6da;background:#262314;border:1px solid #77632e;border-radius:9px;padding:9px;min-height:40px}
+.progress-tip{font-size:12px;color:#bdb38d;line-height:1.5;margin:10px 0}
+.progress-actions{display:flex;gap:8px}
+.progress-save,.progress-off{flex:1;border-radius:10px;min-height:43px;font-weight:800;border:1px solid #79672e;background:#29230f;color:#ffe28b}
+.progress-save{background:#ffce1d;color:#161208;border:0}
+.progress-indicator{font-size:11px;text-align:center;color:#ffda33;margin-top:4px;display:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.progress-indicator.visible{display:block}
+
 </style>
 </head>
 <body><main class="app">
@@ -169,11 +189,27 @@ body{background:radial-gradient(ellipse 75% 30% at 50% 0%,#413500 0,#15120a 45%,
 <details class="syllable-details" id="syllableDetails"><summary>♪ Ajustar volume do “i” e do “a”</summary><div class="syllable-volume-row"><label for="iVolume">i <input id="iVolume" type="range" min="0" max="200" step="5" value="100" aria-label="Volume relativo da sílaba i"><output id="iVolumeText" for="iVolume">100%</output></label><label for="aVolume">a <input id="aVolume" type="range" min="0" max="200" step="5" value="100" aria-label="Volume relativo da sílaba a"><output id="aVolumeText" for="aVolume">100%</output></label></div></details></div>
 <div class="actions"><button id="play" class="primary">▶ Iniciar</button><button id="stop" class="secondary">■ Parar</button></div><div id="transportStatus" class="status" role="status">Pronto para tocar.</div></section>
 
-<div class="setlist-launch"><button class="setlist-trigger" id="setlistOpen" type="button">♫ Playlist / Modo Show</button></div>
+<div class="progress-launch"><button class="setlist-trigger" id="setlistOpen" type="button">♫ Playlist / Show</button><button class="progress-trigger" id="progressOpen" type="button" aria-haspopup="dialog">⚡ Treino progressivo</button></div>
 <div id="officialVoiceStatus" role="status" style="display:none" aria-hidden="true"></div>
 <div id="gfPwaBanner" class="gf-pwa-status" role="status" aria-live="polite"><span class="msg" id="gfPwaMessage">Preparando o modo offline…</span><button id="gfPwaAction" type="button" hidden>Atualizar</button></div>
 <p class="footer">GF MetronoVoice · desenvolvido por Gerson Lima Filho</p>
 </main>
+
+
+<div id="progressModal" class="progress-modal" role="dialog" aria-modal="true" aria-labelledby="progressTitle" hidden>
+ <div class="progress-shell">
+  <div class="progress-head"><strong id="progressTitle">⚡ Treino progressivo</strong><button id="progressClose" class="progress-close" type="button" aria-label="Fechar">×</button></div>
+  <div class="progress-fields">
+   <label class="progress-field">BPM inicial<input id="progressStart" type="number" inputmode="numeric" min="30" max="240" value="60"></label>
+   <label class="progress-field">BPM final<input id="progressTarget" type="number" inputmode="numeric" min="30" max="240" value="120"></label>
+   <label class="progress-field">Aumentar de<select id="progressStep"><option value="1">+1 BPM</option><option value="2">+2 BPM</option><option value="5" selected>+5 BPM</option><option value="10">+10 BPM</option></select></label>
+   <label class="progress-field">A cada<select id="progressBars"><option value="1">1 compasso</option><option value="2">2 compassos</option><option value="4" selected>4 compassos</option><option value="8">8 compassos</option><option value="16">16 compassos</option></select></label>
+  </div>
+  <p class="progress-tip">O BPM aumenta no começo de cada etapa, sem interromper a contagem. Ao atingir o BPM final, continua tocando nesse andamento. Configure e aperte Iniciar no metrônomo.</p>
+  <div class="progress-actions"><button id="progressOff" class="progress-off" type="button">Desativar</button><button id="progressApply" class="progress-save" type="button">Ativar treino</button></div>
+  <p class="progress-tip" id="progressMessage" role="status" style="margin-bottom:0">Padrão: 60 → 120 BPM, +5 a cada 4 compassos.</p>
+ </div>
+</div>
 
 <div class="setlist-modal" id="setlistModal" role="dialog" aria-modal="true" aria-labelledby="setlistTitle" hidden>
  <div class="setlist-shell">
@@ -222,6 +258,48 @@ const status=t=>$('#transportStatus').textContent=t;
 const voiceStatus=t=>$('#officialVoiceStatus').textContent=t;
 function saveSettings(){try{localStorage.setItem(settingsKey,JSON.stringify({bpm,mode,audioMode:$('#audioMode').value,accent:$('#accent').checked,voiceVolume:$('#voiceVolume').value,clickVolume:$('#clickVolume').value,iVolume:$('#iVolume').value,aVolume:$('#aVolume').value}))}catch(e){}}
 function setBpm(v){bpm=Math.max(30,Math.min(240,Math.round(Number(v)||80)));$('#bpmText').innerHTML=bpm+' <span>BPM</span>';$('#bpmRange').value=bpm;saveSettings()}
+// Treino progressivo: usa o mesmo relógio musical da Beta 25; não altera os samples.
+const progressKey='gf-metronovoice-progress-v1';
+let progressive={enabled:false,start:60,target:120,step:5,bars:4,completedBars:0};
+const progressModal=$('#progressModal');
+function progressUpdateLabel(){
+ const p=progressive;
+ $('#progressOpen').textContent=p.enabled?'⚡ Treino progressivo ✓':'⚡ Treino progressivo';
+ $('#progressOpen').setAttribute('aria-pressed',String(p.enabled));
+ $('#progressOpen').title=p.enabled?'Treino ativo: '+bpm+' até '+p.target+' BPM':'Configurar treino progressivo';
+}
+function progressRemember(){try{localStorage.setItem(progressKey,JSON.stringify({enabled:progressive.enabled,start:progressive.start,target:progressive.target,step:progressive.step,bars:progressive.bars}))}catch(e){}}
+function progressOpen(){const p=progressive;$('#progressStart').value=p.start;$('#progressTarget').value=p.target;$('#progressStep').value=p.step;$('#progressBars').value=p.bars;progressModal.hidden=false;$('#progressStart').focus()}
+function progressClose(){progressModal.hidden=true}
+$('#progressOpen').onclick=progressOpen;
+$('#progressClose').onclick=progressClose;
+progressModal.addEventListener('click',e=>{if(e.target===progressModal)progressClose()});
+$('#progressApply').onclick=()=>{
+ const startBpm=Number($('#progressStart').value),target=Number($('#progressTarget').value),step=Number($('#progressStep').value),bars=Number($('#progressBars').value);
+ if(!Number.isInteger(startBpm)||startBpm<30||startBpm>240||!Number.isInteger(target)||target<30||target>240||target<=startBpm||![1,2,5,10].includes(step)||![1,2,4,8,16].includes(bars)){
+   $('#progressMessage').textContent='Confira os valores: BPM final deve ser maior que o inicial (30 a 240).';return;
+ }
+ if(running)stop();
+ Object.assign(progressive,{enabled:true,start:startBpm,target,step,bars,completedBars:0});
+ setBpm(startBpm);progressRemember();progressUpdateLabel();progressClose();
+ status('⚡ Treino preparado em '+startBpm+' BPM. Toque Iniciar.');
+};
+$('#progressOff').onclick=()=>{progressive.enabled=false;progressive.completedBars=0;progressRemember();progressUpdateLabel();progressClose();status('Treino progressivo desativado.');};
+function progressOnBarComplete(){
+ if(!progressive.enabled||!running)return;
+ progressive.completedBars++;
+ if(progressive.completedBars%progressive.bars!==0||bpm>=progressive.target)return;
+ setBpm(Math.min(progressive.target,bpm+progressive.step));
+ progressUpdateLabel();
+}
+try{const saved=JSON.parse(localStorage.getItem(progressKey)||'{}');if(saved&&typeof saved==='object'){
+ progressive.start=Number.isInteger(saved.start)&&saved.start>=30&&saved.start<=240?saved.start:60;
+ progressive.target=Number.isInteger(saved.target)&&saved.target>progressive.start&&saved.target<=240?saved.target:120;
+ progressive.step=[1,2,5,10].includes(saved.step)?saved.step:5;
+ progressive.bars=[1,2,4,8,16].includes(saved.bars)?saved.bars:4;
+ progressive.enabled=!!saved.enabled;
+}}catch(e){}
+progressUpdateLabel();
 function setMode(m){mode=m;for(const el of document.querySelectorAll('[data-mode]'))el.classList.toggle('selected',el.dataset.mode===m);saveSettings();if(running){stop();start()}}
 // TAP BPM: calcula a pulsação sem interferir no motor de áudio ou no Desafio.
 let tapLast=0, tapIntervals=[];
@@ -325,9 +403,9 @@ function note(t,index){const div=slots(),pre=index<precountEvents,offset=pre?ind
   const audible=pre||challengeAudible;
   if(audible&&(!pre||sub===0))speakAt(label,t,strong);
   flashQueue.push({t,beat,isE:sub>0,pre,label,audible});}
-function tick(){if(!running)return;const horizon=ctx.currentTime+.14;let guard=0;while(nextTime<horizon&&guard++<48){note(nextTime,eventIndex);nextTime+=60/bpm/slots();eventIndex++;if(eventIndex>=precountEvents+slots()*4)eventIndex=precountEvents}}
+function tick(){if(!running)return;const horizon=ctx.currentTime+.14;let guard=0;while(nextTime<horizon&&guard++<48){note(nextTime,eventIndex);nextTime+=60/bpm/slots();eventIndex++;if(eventIndex>=precountEvents+slots()*4){eventIndex=precountEvents;progressOnBarComplete();}}}
 function animate(){if(!running)return;while(flashQueue.length&&flashQueue[0].t<=ctx.currentTime+.014){const n=flashQueue.shift();const visible=!challengeEnabled||n.audible;for(let i=0;i<4;i++){const el=$('#beat'+i);el.classList.toggle('active',visible&&i===n.beat);el.classList.toggle('eighth',visible&&i===n.beat&&n.isE)}status(challengeEnabled&&!n.pre?'🏆 Desafio · '+bpm+' BPM':(n.pre?'Pré-contagem: ':'Tocando: ')+n.label+' · '+bpm+' BPM')}raf=requestAnimationFrame(animate)}
-async function start(){try{await detectorAudioRestoration;if(navigator.audioSession){try{navigator.audioSession.type='playback'}catch(e){}}await resume();if(running)return;if($('#audioMode').value!=='click'){status('Carregando voz oficial…');await ensureVoices();}running=true;eventIndex=0;resetChallenge();precountEvents=0;nextTime=ctx.currentTime+.07;flashQueue=[];activeSources=new Set();scheduler=setInterval(tick,25);tick();animate();$('#play').textContent='▶ Tocando';slSyncShowPlayback();status(precountEvents?'Pré-contagem…':'Iniciando…')}catch(e){status('Erro: '+e.message)}}
+async function start(){try{await detectorAudioRestoration;if(navigator.audioSession){try{navigator.audioSession.type='playback'}catch(e){}}await resume();if(running)return;if($('#audioMode').value!=='click'){status('Carregando voz oficial…');await ensureVoices();}running=true;eventIndex=0;resetChallenge();precountEvents=0;if(progressive.enabled){progressive.completedBars=0;setBpm(progressive.start);progressUpdateLabel();}nextTime=ctx.currentTime+.07;flashQueue=[];activeSources=new Set();scheduler=setInterval(tick,25);tick();animate();$('#play').textContent='▶ Tocando';slSyncShowPlayback();status(precountEvents?'Pré-contagem…':'Iniciando…')}catch(e){status('Erro: '+e.message)}}
 function stop(){running=false;clearInterval(scheduler);cancelAnimationFrame(raf);flashQueue=[];for(const source of activeSources){try{source.stop()}catch(e){}}activeSources=new Set();for(let i=0;i<4;i++)$('#beat'+i).classList.remove('active','eighth');$('#play').textContent='▶ Iniciar';slSyncShowPlayback();status('Parado.')}
 $('#play').onclick=()=>running?stop():start();$('#stop').onclick=stop;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&running)stop()});
@@ -495,7 +573,7 @@ $('#detectApply').onclick=()=>{if(detectEstimate){setBpm(detectEstimate);detectM
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&detectSession)finishDetect(true)});
 
 // GF MetronoVoice PWA - Beta 16. Core metronome/audio code above is unchanged.
-const GF_RELEASE = 'beta25-20261126-setlist-subdivisao-cache';
+const GF_RELEASE = 'beta26-20261126-progressivo';
 const pwaBanner = $('#gfPwaBanner'), pwaMessage=$('#gfPwaMessage'), pwaAction=$('#gfPwaAction');
 let pwaBusy=false, pwaUpdateWaiting=false;
 function pwaShow(msg,actionLabel){
@@ -598,6 +676,7 @@ function slLoadSong(index){
  const list=slList();if(index<0||index>=list.songs.length)return;
  const song=list.songs[index];
  if(running)stop();
+ if(progressive.enabled){progressive.enabled=false;progressRemember();progressUpdateLabel();}
  slState.selectedSong=index;setBpm(song.bpm);
  $('#audioMode').value=slNormalizeAudio(song.audioMode);
  $('#accent').checked=song.accent!==false;
