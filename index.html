@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="gf-release" content="beta26-20261126-progressivo">
+<meta name="gf-release" content="beta27-20261126-precontagem-zoom">
 <meta name="theme-color" content="#111827">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="GF MetronoVoice">
@@ -168,6 +168,12 @@ body{background:radial-gradient(ellipse 75% 30% at 50% 0%,#413500 0,#15120a 45%,
 .progress-save{background:#ffce1d;color:#161208;border:0}
 .progress-indicator{font-size:11px;text-align:center;color:#ffda33;margin-top:4px;display:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .progress-indicator.visible{display:block}
+/* Evita zoom automático do Safari ao focar campos menores que 16px. */
+.progress-field input,.progress-field select{font-size:16px;line-height:1.2;max-width:100%;min-width:0}
+.progress-modal{width:100%;max-width:100vw;overflow-x:hidden;overscroll-behavior:contain}
+.progress-shell{box-sizing:border-box;min-width:0;max-width:100%;overscroll-behavior:contain}
+body.progress-dialog-open{overflow:hidden}
+html{-webkit-text-size-adjust:100%}
 
 </style>
 </head>
@@ -205,7 +211,7 @@ body{background:radial-gradient(ellipse 75% 30% at 50% 0%,#413500 0,#15120a 45%,
    <label class="progress-field">Aumentar de<select id="progressStep"><option value="1">+1 BPM</option><option value="2">+2 BPM</option><option value="5" selected>+5 BPM</option><option value="10">+10 BPM</option></select></label>
    <label class="progress-field">A cada<select id="progressBars"><option value="1">1 compasso</option><option value="2">2 compassos</option><option value="4" selected>4 compassos</option><option value="8">8 compassos</option><option value="16">16 compassos</option></select></label>
   </div>
-  <p class="progress-tip">O BPM aumenta no começo de cada etapa, sem interromper a contagem. Ao atingir o BPM final, continua tocando nesse andamento. Configure e aperte Iniciar no metrônomo.</p>
+  <p class="progress-tip">O BPM aumenta no começo de cada etapa, sem interromper a contagem. Ao atingir o BPM final, continua tocando nesse andamento. O treino começa com uma pré-contagem fixa de 4 tempos na voz GF, levemente mais aguda. Depois, a voz volta ao tom original. Configure e aperte Iniciar no metrônomo.</p>
   <div class="progress-actions"><button id="progressOff" class="progress-off" type="button">Desativar</button><button id="progressApply" class="progress-save" type="button">Ativar treino</button></div>
   <p class="progress-tip" id="progressMessage" role="status" style="margin-bottom:0">Padrão: 60 → 120 BPM, +5 a cada 4 compassos.</p>
  </div>
@@ -269,8 +275,8 @@ function progressUpdateLabel(){
  $('#progressOpen').title=p.enabled?'Treino ativo: '+bpm+' até '+p.target+' BPM':'Configurar treino progressivo';
 }
 function progressRemember(){try{localStorage.setItem(progressKey,JSON.stringify({enabled:progressive.enabled,start:progressive.start,target:progressive.target,step:progressive.step,bars:progressive.bars}))}catch(e){}}
-function progressOpen(){const p=progressive;$('#progressStart').value=p.start;$('#progressTarget').value=p.target;$('#progressStep').value=p.step;$('#progressBars').value=p.bars;progressModal.hidden=false;$('#progressStart').focus()}
-function progressClose(){progressModal.hidden=true}
+function progressOpen(){const p=progressive;$('#progressStart').value=p.start;$('#progressTarget').value=p.target;$('#progressStep').value=p.step;$('#progressBars').value=p.bars;document.activeElement?.blur?.();document.body.classList.add('progress-dialog-open');progressModal.hidden=false;/* Sem autofocus: evita teclado e zoom do Safari ao abrir. */}
+function progressClose(){document.activeElement?.blur?.();progressModal.hidden=true;document.body.classList.remove('progress-dialog-open')}
 $('#progressOpen').onclick=progressOpen;
 $('#progressClose').onclick=progressClose;
 progressModal.addEventListener('click',e=>{if(e.target===progressModal)progressClose()});
@@ -282,7 +288,7 @@ $('#progressApply').onclick=()=>{
  if(running)stop();
  Object.assign(progressive,{enabled:true,start:startBpm,target,step,bars,completedBars:0});
  setBpm(startBpm);progressRemember();progressUpdateLabel();progressClose();
- status('⚡ Treino preparado em '+startBpm+' BPM. Toque Iniciar.');
+ status('⚡ Treino preparado. Pré-contagem com voz antes de iniciar.');
 };
 $('#progressOff').onclick=()=>{progressive.enabled=false;progressive.completedBars=0;progressRemember();progressUpdateLabel();progressClose();status('Treino progressivo desativado.');};
 function progressOnBarComplete(){
@@ -366,22 +372,23 @@ function clickAt(t,strong=false){
 // Beta 8: preserva a afinação natural das sete gravações.
 // A duração é limitada à janela rítmica SEM alterar playbackRate.
 // O fade curto suaviza o recorte para evitar embolo e estalos.
-function voiceAt(label,t,strong=false){
+function voiceAt(label,t,strong=false,precount=false){
   const b=voiceBuffers[label];if(!b)return false;
   const base=Number($('#voiceVolume').value)/100;
   const relative=label==='i'?Number($('#iVolume').value)/100:label==='a'?Number($('#aVolume').value)/100:1;
   const amount=base*relative*(strong?1:.91);
   if(amount<=0)return true;
-  const windowSeconds=60/bpm/slots();
+  const windowSeconds=60/bpm/(precount?1:slots());
   const gap=Math.min(.012,windowSeconds*.09);
   const available=Math.max(.025,windowSeconds-gap);
-  const duration=Math.min(b.duration,available);
+  const pitch=precount?1.10:1;
+  const duration=Math.min(b.duration/pitch,available);
   const attack=Math.min(.0035,duration*.12);
   const release=Math.min(.014,Math.max(.004,duration*.16));
   const src=ctx.createBufferSource(),gain=ctx.createGain();
   src.buffer=b;
   // Taxa original = timbre e altura originais da voz.
-  src.playbackRate.setValueAtTime(1,t);
+  src.playbackRate.setValueAtTime(pitch,t);
   gain.gain.setValueAtTime(0,t);
   gain.gain.linearRampToValueAtTime(amount,t+attack);
   gain.gain.setValueAtTime(amount,Math.max(t+attack,t+duration-release));
@@ -396,6 +403,9 @@ const slots=()=>mode==='sixteenth'?4:mode==='eighth'?2:1;
 function note(t,index){const div=slots(),pre=index<precountEvents,offset=pre?index:index-precountEvents,beat=Math.floor(offset/div)%4,sub=offset%div;
   const label=pre?String(beat+1):sub===0?String(beat+1):mode==='eighth'?'e':['','i','e','a'][sub];
   const strong=$('#accent').checked&&beat===0&&sub===0;
+  // Pré-contagem fixa: 1, 2, 3, 4 somente com a voz, 10% mais aguda.
+  // Não toca clique, não progride o BPM e não altera o tom do metrônomo normal.
+  if(pre){if(sub===0)voiceAt(label,t,false,true);flashQueue.push({t,beat,isE:false,pre:true,label,audible:true});return;}
   // Modo normal: mesma instrução da Beta 8, sem qualquer processamento adicional.
   if(!challengeEnabled){if(!pre||sub===0)speakAt(label,t,strong);flashQueue.push({t,beat,isE:sub>0,pre,label});return;}
   // Desafio: relógio musical segue intocado; alterna somente se a voz toca.
@@ -405,7 +415,7 @@ function note(t,index){const div=slots(),pre=index<precountEvents,offset=pre?ind
   flashQueue.push({t,beat,isE:sub>0,pre,label,audible});}
 function tick(){if(!running)return;const horizon=ctx.currentTime+.14;let guard=0;while(nextTime<horizon&&guard++<48){note(nextTime,eventIndex);nextTime+=60/bpm/slots();eventIndex++;if(eventIndex>=precountEvents+slots()*4){eventIndex=precountEvents;progressOnBarComplete();}}}
 function animate(){if(!running)return;while(flashQueue.length&&flashQueue[0].t<=ctx.currentTime+.014){const n=flashQueue.shift();const visible=!challengeEnabled||n.audible;for(let i=0;i<4;i++){const el=$('#beat'+i);el.classList.toggle('active',visible&&i===n.beat);el.classList.toggle('eighth',visible&&i===n.beat&&n.isE)}status(challengeEnabled&&!n.pre?'🏆 Desafio · '+bpm+' BPM':(n.pre?'Pré-contagem: ':'Tocando: ')+n.label+' · '+bpm+' BPM')}raf=requestAnimationFrame(animate)}
-async function start(){try{await detectorAudioRestoration;if(navigator.audioSession){try{navigator.audioSession.type='playback'}catch(e){}}await resume();if(running)return;if($('#audioMode').value!=='click'){status('Carregando voz oficial…');await ensureVoices();}running=true;eventIndex=0;resetChallenge();precountEvents=0;if(progressive.enabled){progressive.completedBars=0;setBpm(progressive.start);progressUpdateLabel();}nextTime=ctx.currentTime+.07;flashQueue=[];activeSources=new Set();scheduler=setInterval(tick,25);tick();animate();$('#play').textContent='▶ Tocando';slSyncShowPlayback();status(precountEvents?'Pré-contagem…':'Iniciando…')}catch(e){status('Erro: '+e.message)}}
+async function start(){try{await detectorAudioRestoration;if(navigator.audioSession){try{navigator.audioSession.type='playback'}catch(e){}}await resume();if(running)return;if($('#audioMode').value!=='click'||progressive.enabled){status('Carregando voz oficial…');await ensureVoices();}running=true;eventIndex=0;resetChallenge();precountEvents=progressive.enabled?slots()*4:0;if(progressive.enabled){progressive.completedBars=0;setBpm(progressive.start);progressUpdateLabel();}nextTime=ctx.currentTime+.07;flashQueue=[];activeSources=new Set();scheduler=setInterval(tick,25);tick();animate();$('#play').textContent='▶ Tocando';slSyncShowPlayback();status(precountEvents?'Pré-contagem…':'Iniciando…')}catch(e){status('Erro: '+e.message)}}
 function stop(){running=false;clearInterval(scheduler);cancelAnimationFrame(raf);flashQueue=[];for(const source of activeSources){try{source.stop()}catch(e){}}activeSources=new Set();for(let i=0;i<4;i++)$('#beat'+i).classList.remove('active','eighth');$('#play').textContent='▶ Iniciar';slSyncShowPlayback();status('Parado.')}
 $('#play').onclick=()=>running?stop():start();$('#stop').onclick=stop;
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&running)stop()});
@@ -573,7 +583,7 @@ $('#detectApply').onclick=()=>{if(detectEstimate){setBpm(detectEstimate);detectM
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&detectSession)finishDetect(true)});
 
 // GF MetronoVoice PWA - Beta 16. Core metronome/audio code above is unchanged.
-const GF_RELEASE = 'beta26-20261126-progressivo';
+const GF_RELEASE = 'beta27-20261126-precontagem-zoom';
 const pwaBanner = $('#gfPwaBanner'), pwaMessage=$('#gfPwaMessage'), pwaAction=$('#gfPwaAction');
 let pwaBusy=false, pwaUpdateWaiting=false;
 function pwaShow(msg,actionLabel){
