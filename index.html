@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="gf-release" content="beta23-20261126-playlist-show">
+<meta name="gf-release" content="beta25-20261126-setlist-subdivisao-cache">
 <meta name="theme-color" content="#111827">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="GF MetronoVoice">
@@ -141,7 +141,7 @@ body{background:radial-gradient(ellipse 75% 30% at 50% 0%,#413500 0,#15120a 45%,
 .setlist-counter{font-size:12px;color:#d0ba72;letter-spacing:1px;font-weight:700}
 .setlist-showname{font-size:clamp(19px,5vw,29px);font-weight:900;color:#fff0ca;margin:15px 0 8px;overflow-wrap:anywhere}
 .setlist-showbpm{font-size:clamp(53px,14vw,84px);font-weight:950;color:#ffce10;line-height:1.03;font-variant-numeric:tabular-nums}
-.setlist-showbpm small{font-size:14px;color:#d8c07c;letter-spacing:1px}
+.setlist-showsettings{color:#d6c78f;font-size:12px;font-weight:750;margin-top:7px}.setlist-showbpm small{font-size:14px;color:#d8c07c;letter-spacing:1px}
 .setlist-nav{display:flex;gap:10px;margin-top:15px}
 .setlist-nav button{flex:1;min-height:51px;border-radius:10px;background:#282312;color:#ffd83c;border:1px solid #77601e;font-weight:850}
 .setlist-nav button:disabled{opacity:.25}
@@ -182,15 +182,15 @@ body{background:radial-gradient(ellipse 75% 30% at 50% 0%,#413500 0,#15120a 45%,
    <div class="setlist-tabs"><button id="setlistEditTab" type="button" aria-selected="true">Editar repertório</button><button id="setlistShowTab" type="button" aria-selected="false">🏆 Modo Show</button></div>
    <div class="setlist-row"><select id="setlistSelect" class="setlist-select" aria-label="Selecionar repertório"></select><button id="setlistNew" type="button" class="setlist-small">+ Repertório</button><button id="setlistRename" type="button" class="setlist-small">Renomear</button></div>
    <div id="setlistEditor">
-     <form id="setlistSongForm" autocomplete="off"><label class="setlist-label" for="setlistName">Cadastrar música</label><div class="setlist-row"><input class="setlist-input" id="setlistName" maxlength="120" placeholder="Nome da música" required><input class="setlist-input" id="setlistBpm" type="number" inputmode="numeric" min="30" max="240" value="80" style="flex:0 1 85px" aria-label="BPM da música" required><button class="setlist-add" type="submit" id="setlistSaveSong">Adicionar</button></div><div class="setlist-songopts"><label>Som <select id="setlistSongAudio"><option value="voice">Voz GF</option><option value="click">Clique digital</option><option value="both">Voz + clique</option></select></label><label><input id="setlistSongAccent" type="checkbox" checked> Acentuar o tempo 1</label></div></form>
+     <form id="setlistSongForm" autocomplete="off"><label class="setlist-label" for="setlistName">Cadastrar música</label><div class="setlist-row"><input class="setlist-input" id="setlistName" maxlength="120" placeholder="Nome da música" required><input class="setlist-input" id="setlistBpm" type="number" inputmode="numeric" min="30" max="240" value="80" style="flex:0 1 85px" aria-label="BPM da música" required><button class="setlist-add" type="submit" id="setlistSaveSong">Adicionar</button></div><div class="setlist-songopts"><label>Som <select id="setlistSongAudio"><option value="voice">Voz GF</option><option value="click">Clique digital</option><option value="both">Voz + clique</option></select></label><label>Contagem <select id="setlistSongSubdivision"><option value="quarter">1 2 3 4</option><option value="eighth">1 e 2 e 3 e 4 e</option><option value="sixteenth">1 i e a</option></select></label><label><input id="setlistSongAccent" type="checkbox" checked> Acentuar o tempo 1</label></div></form>
      <p class="setlist-sub">Toque em uma música para carregar o BPM. Use ↑ e ↓ para ordenar. O andamento é carregado com o metrônomo parado.</p>
      <div id="setlistSongs"></div>
      <div class="setlist-actions"><button id="setlistDeleteList" class="setlist-small" type="button">Excluir repertório</button><button id="setlistExport" class="setlist-small" type="button">↓ Exportar JSON</button><button id="setlistImport" class="setlist-small" type="button">↑ Importar JSON</button><input class="setlist-file" id="setlistFile" type="file" accept=".json,application/json"></div>
    </div>
    <div id="setlistShow" hidden>
-     <button class="setlist-show" id="setlistPlayCard" type="button" aria-label="Iniciar metrônomo da música" aria-pressed="false"><div class="setlist-counter" id="setlistPosition"></div><div class="setlist-showname" id="setlistCurrentName"></div><div class="setlist-showbpm" id="setlistCurrentBpm">-- BPM</div><div class="setlist-playhint" id="setlistPlayHint">▶ Toque aqui para iniciar</div></button>
+     <button class="setlist-show" id="setlistPlayCard" type="button" aria-label="Iniciar metrônomo da música" aria-pressed="false"><div class="setlist-counter" id="setlistPosition"></div><div class="setlist-showname" id="setlistCurrentName"></div><div class="setlist-showbpm" id="setlistCurrentBpm">-- BPM</div><div class="setlist-showsettings" id="setlistCurrentSettings"></div><div class="setlist-playhint" id="setlistPlayHint">▶ Toque aqui para iniciar</div></button>
      <div class="setlist-nav"><button id="setlistPrev" type="button">◀ Anterior</button><button id="setlistNext" type="button">Próxima ▶</button></div>
-     <p class="setlist-sub">Toque no retângulo para iniciar ou parar. Anterior/Próxima carrega o andamento e o som da música, sem iniciar automaticamente.</p>
+     <p class="setlist-sub">Toque no retângulo para iniciar ou parar. Anterior/Próxima carrega o BPM, a contagem, o som e o acento da música, sem iniciar automaticamente.</p>
    </div>
    <div class="setlist-msg" id="setlistMessage" role="status" aria-live="polite"></div>
   </div>
@@ -495,7 +495,7 @@ $('#detectApply').onclick=()=>{if(detectEstimate){setBpm(detectEstimate);detectM
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&detectSession)finishDetect(true)});
 
 // GF MetronoVoice PWA - Beta 16. Core metronome/audio code above is unchanged.
-const GF_RELEASE = 'beta24-20261126-setlist-play-options';
+const GF_RELEASE = 'beta25-20261126-setlist-subdivisao-cache';
 const pwaBanner = $('#gfPwaBanner'), pwaMessage=$('#gfPwaMessage'), pwaAction=$('#gfPwaAction');
 let pwaBusy=false, pwaUpdateWaiting=false;
 function pwaShow(msg,actionLabel){
@@ -542,7 +542,7 @@ async function pwaCheckUpdate(){
     const found=text.match(/<meta\s+name=["']gf-release["']\s+content=["']([^"']+)/i);
     if(found){
       if(found[1]!==GF_RELEASE){pwaUpdateWaiting=true;pwaShow('Nova versão do GF MetronoVoice disponível','Atualizar')}
-      else if(pwaUpdateWaiting){pwaUpdateWaiting=false;pwaHide()}
+      else{pwaUpdateWaiting=false;if(!pwaBusy)pwaHide()}
     }
   }catch(e){}
 }
@@ -592,6 +592,8 @@ function slId(){return 'list-'+Date.now()+'-'+Math.random().toString(36).slice(2
 function slList(){return slState.lists.find(l=>l.id===slState.selectedId)||slState.lists[0]}
 function slSelected(){const list=slList();return list.songs[Math.min(slState.selectedSong,list.songs.length-1)]}
 function slNormalizeAudio(value){return ['voice','click','both'].includes(value)?value:'voice'}
+function slNormalizeSubdivision(value){return ['quarter','eighth','sixteenth'].includes(value)?value:'quarter'}
+function slSubdivisionLabel(value){return ({quarter:'1 2 3 4',eighth:'1 e 2 e 3 e 4 e',sixteenth:'1 i e a'})[slNormalizeSubdivision(value)]}
 function slLoadSong(index){
  const list=slList();if(index<0||index>=list.songs.length)return;
  const song=list.songs[index];
@@ -599,6 +601,7 @@ function slLoadSong(index){
  slState.selectedSong=index;setBpm(song.bpm);
  $('#audioMode').value=slNormalizeAudio(song.audioMode);
  $('#accent').checked=song.accent!==false;
+ setMode(slNormalizeSubdivision(song.subdivision));
  saveSettings();slSave();slRender();
  slMsg('Pronto: '+song.bpm+' BPM · '+song.name);
 }
@@ -622,13 +625,13 @@ function slRender(){
   const row=document.createElement('div');row.className='setlist-song'+(i===slState.selectedSong?' selected':'');
   const main=document.createElement('button');main.type='button';main.className='song-main';
   const name=document.createElement('span');name.className='song-name';name.textContent=(i+1)+'. '+song.name;
-  const number=document.createElement('span');number.className='song-bpm';number.textContent=song.bpm+' BPM · '+({voice:'Voz GF',click:'Clique digital',both:'Voz + clique'}[slNormalizeAudio(song.audioMode)])+' · '+(song.accent!==false?'Acento':'Sem acento');main.append(name,number);main.onclick=()=>slLoadSong(i);row.append(main);
+  const number=document.createElement('span');number.className='song-bpm';number.textContent=song.bpm+' BPM · '+({voice:'Voz GF',click:'Clique digital',both:'Voz + clique'}[slNormalizeAudio(song.audioMode)])+' · '+slSubdivisionLabel(song.subdivision)+' · '+(song.accent!==false?'Acento':'Sem acento');main.append(name,number);main.onclick=()=>slLoadSong(i);row.append(main);
   const moves=document.createElement('div');moves.className='song-move';
   for(const [symbol,action,disabled] of [['↑','up',i===0],['↓','down',i===list.songs.length-1],['✎','edit',false],['×','delete',false]]){
    const b=document.createElement('button');b.type='button';b.textContent=symbol;b.disabled=disabled;b.setAttribute('aria-label',({up:'Subir',down:'Descer',edit:'Editar',delete:'Excluir'}[action])+' '+song.name);
    b.onclick=()=>{
     if(action==='delete'){if(!confirm('Excluir a música “'+song.name+'”?'))return;list.songs.splice(i,1);slState.selectedSong=Math.min(slState.selectedSong,list.songs.length-1);slEdit=-1}
-    else if(action==='edit'){slEdit=i;slEl('setlistName').value=song.name;slEl('setlistBpm').value=song.bpm;slEl('setlistSongAudio').value=slNormalizeAudio(song.audioMode);slEl('setlistSongAccent').checked=song.accent!==false;slEl('setlistSaveSong').textContent='Salvar';slEl('setlistName').focus();return}
+    else if(action==='edit'){slEdit=i;slEl('setlistName').value=song.name;slEl('setlistBpm').value=song.bpm;slEl('setlistSongAudio').value=slNormalizeAudio(song.audioMode);slEl('setlistSongSubdivision').value=slNormalizeSubdivision(song.subdivision);slEl('setlistSongAccent').checked=song.accent!==false;slEl('setlistSaveSong').textContent='Salvar';slEl('setlistName').focus();return}
     else{const j=i+(action==='up'?-1:1);[list.songs[i],list.songs[j]]=[list.songs[j],list.songs[i]];if(slState.selectedSong===i)slState.selectedSong=j;else if(slState.selectedSong===j)slState.selectedSong=i;}
     slSave();slRender();
    };moves.append(b);
@@ -638,6 +641,7 @@ function slRender(){
  slEl('setlistPosition').textContent=list.songs.length?(slState.selectedSong+1)+' de '+list.songs.length+' · '+list.name:'Repertório vazio';
  slEl('setlistCurrentName').textContent=song?song.name:'Adicione músicas no editor';
  slEl('setlistCurrentBpm').textContent=song?song.bpm+' BPM':'— BPM';
+ slEl('setlistCurrentSettings').textContent=song?slSubdivisionLabel(song.subdivision)+' · '+({voice:'Voz GF',click:'Clique digital',both:'Voz + clique'}[slNormalizeAudio(song.audioMode)])+' · '+(song.accent!==false?'Com acento':'Sem acento'):'';
  slSyncShowPlayback();
  slEl('setlistPrev').disabled=!song||slState.selectedSong===0;
  slEl('setlistNext').disabled=!song||slState.selectedSong===list.songs.length-1;
@@ -654,16 +658,16 @@ slEl('setlistRename').onclick=()=>{const list=slList();const name=prompt('Novo n
 slEl('setlistDeleteList').onclick=()=>{if(!confirm('Excluir este repertório e todas as suas músicas?'))return;const list=slList();slState.lists=slState.lists.filter(l=>l.id!==list.id);if(!slState.lists.length)slState.lists=slDefault().lists;slState.selectedId=slState.lists[0].id;slState.selectedSong=0;slSave();slRender()};
 slEl('setlistSongForm').onsubmit=e=>{
  e.preventDefault();const name=slEl('setlistName').value.trim();const val=Number(slEl('setlistBpm').value);if(!name||!Number.isInteger(val)||val<30||val>240){slMsg('Informe nome e BPM entre 30 e 240.');return}
- const audioMode=slNormalizeAudio(slEl('setlistSongAudio').value),accent=slEl('setlistSongAccent').checked;
- const songs=slList().songs;const entry={name:name.slice(0,120),bpm:val,audioMode,accent};
+ const audioMode=slNormalizeAudio(slEl('setlistSongAudio').value),accent=slEl('setlistSongAccent').checked,subdivision=slNormalizeSubdivision(slEl('setlistSongSubdivision').value);
+ const songs=slList().songs;const entry={name:name.slice(0,120),bpm:val,audioMode,accent,subdivision};
  if(slEdit>=0&&slEdit<songs.length){songs[slEdit]=entry;slMsg('Música atualizada.');if(slEdit===slState.selectedSong)slLoadSong(slEdit)}else{songs.push(entry);slMsg('Música adicionada.')}
- slEdit=-1;slEl('setlistSaveSong').textContent='Adicionar';slEl('setlistName').value='';slEl('setlistSongAudio').value='voice';slEl('setlistSongAccent').checked=true;slSave();slRender();
+ slEdit=-1;slEl('setlistSaveSong').textContent='Adicionar';slEl('setlistName').value='';slEl('setlistSongAudio').value='voice';slEl('setlistSongSubdivision').value='quarter';slEl('setlistSongAccent').checked=true;slSave();slRender();
 };
 slEl('setlistPlayCard').onclick=async()=>{
  const song=slSelected();if(!song)return;
  if(running){stop();return}
  // Apply the selected song's preferences before playback.
- setBpm(song.bpm);$('#audioMode').value=slNormalizeAudio(song.audioMode);$('#accent').checked=song.accent!==false;saveSettings();
+ setBpm(song.bpm);$('#audioMode').value=slNormalizeAudio(song.audioMode);$('#accent').checked=song.accent!==false;setMode(slNormalizeSubdivision(song.subdivision));saveSettings();
  await start();slSyncShowPlayback();
 };
 slEl('setlistPrev').onclick=()=>slLoadSong(slState.selectedSong-1);
@@ -676,7 +680,7 @@ slEl('setlistImport').onclick=()=>slEl('setlistFile').click();
 slEl('setlistFile').onchange=async e=>{
  const file=e.target.files[0];e.target.value='';if(!file)return;if(file.size>1024*1024){slMsg('Arquivo muito grande (máximo 1 MB).');return}
  try{const data=JSON.parse(await file.text());if(data.kind!=='setlists'||!Array.isArray(data.lists)||!data.lists.length||data.lists.length>100)throw Error('Formato de repertório inválido');
-  const lists=data.lists.map(l=>{if(!l||typeof l.name!=='string'||!Array.isArray(l.songs)||l.songs.length>500)throw Error('Lista inválida');return{id:slId(),name:l.name.slice(0,100),songs:l.songs.map(s=>{const n=Number(s.bpm);if(typeof s.name!=='string'||!s.name.trim()||!Number.isInteger(n)||n<30||n>240)throw Error('Música ou BPM inválido');return{name:s.name.slice(0,120),bpm:n,audioMode:slNormalizeAudio(s.audioMode),accent:s.accent!==false}})}});
+  const lists=data.lists.map(l=>{if(!l||typeof l.name!=='string'||!Array.isArray(l.songs)||l.songs.length>500)throw Error('Lista inválida');return{id:slId(),name:l.name.slice(0,100),songs:l.songs.map(s=>{const n=Number(s.bpm);if(typeof s.name!=='string'||!s.name.trim()||!Number.isInteger(n)||n<30||n>240)throw Error('Música ou BPM inválido');return{name:s.name.slice(0,120),bpm:n,audioMode:slNormalizeAudio(s.audioMode),accent:s.accent!==false,subdivision:slNormalizeSubdivision(s.subdivision)}})}});
   if(!confirm('Importar '+lists.length+' repertório(s) e adicionar aos existentes?'))return;
   slState.lists.push(...lists);slState.selectedId=lists[0].id;slState.selectedSong=0;slSave();slRender();slMsg('Repertório(s) importado(s).');
  }catch(err){slMsg('Não foi possível importar: '+err.message)}
