@@ -98,6 +98,12 @@ body{background:radial-gradient(ellipse 75% 30% at 50% 0%,#413500 0,#15120a 45%,
 .detect-value{font-weight:950;color:#ffda20;font-size:19px}
 .detect-alt{border:1px solid #756323;color:#ffda20;background:#24200f;border-radius:8px;padding:7px 9px;font-weight:800;font-size:12px}
 .detect-alt:disabled{opacity:.35}
+
+.detect-visual{display:none;align-items:end;gap:4px;height:56px;margin-top:8px;padding:8px 10px;border:1px solid #4d4118;border-radius:10px;background:#121007;overflow:hidden}
+.detect-visual.active{display:flex}
+.detect-bar{flex:1;min-width:5px;border-radius:999px;background:linear-gradient(180deg,#ffd84a 0%,#ffcf16 55%,#c39100 100%);height:16%;box-shadow:0 0 8px rgba(255,208,30,.22)}
+.detect-bar.idle{opacity:.45}
+
 @media(max-height:750px){.detect-row{margin:3px 0 0}.detect-trigger{min-height:29px;padding:4px 10px;font-size:11px}}
 </style>
 </head>
@@ -109,6 +115,7 @@ body{background:radial-gradient(ellipse 75% 30% at 50% 0%,#413500 0,#15120a 45%,
 <div class="detect-row"><button id="detectToggle" class="detect-trigger" type="button" aria-expanded="false" aria-controls="detectPanel">🎙 Detectar BPM</button></div>
 <div class="detect-panel" id="detectPanel">
  <div class="detect-head"><button class="detect-go" id="detectGo" type="button">🎙 Escutar 10 s</button><button class="detect-stop" id="detectCancel" type="button" hidden>Parar</button><span id="detectStatus" class="detect-status" role="status" aria-live="polite">Aponte o microfone para a música. O áudio não é enviado nem salvo.</span></div>
+ <div class="detect-visual" id="detectVisual" aria-hidden="true"><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span><span class="detect-bar idle"></span></div>
  <div id="detectResult" class="detect-result"><span class="detect-value" id="detectBpm">-- BPM</span><button class="detect-alt" id="detectHalf" type="button">÷2</button><button class="detect-alt" id="detectDouble" type="button">×2</button><button class="detect-apply" id="detectApply" type="button">Usar BPM</button></div>
 </div>
 <div class="label" style="margin-top:12px">Compasso 4/4</div><div class="beatrow" aria-label="Indicadores dos tempos"><div class="beat" id="beat0">1</div><div class="beat" id="beat1">2</div><div class="beat" id="beat2">3</div><div class="beat" id="beat3">4</div></div>
@@ -262,6 +269,13 @@ const detectToggle=$('#detectToggle'), detectPanel=$('#detectPanel');
 const detectGo=$('#detectGo'), detectCancel=$('#detectCancel'), detectStatus=$('#detectStatus');
 const detectResult=$('#detectResult'), detectBpm=$('#detectBpm');
 let detectSession=null, detectEstimate=0;
+const detectVisual=$('#detectVisual');
+const detectBars=[...document.querySelectorAll('.detect-bar')];
+let detectVisualTimer=null;
+function detectVisualStart(){if(!detectVisual)return;detectVisual.classList.add('active');for(const b of detectBars){b.classList.remove('idle');b.style.height='18%';}}
+function detectVisualStop(){if(detectVisualTimer){clearInterval(detectVisualTimer);detectVisualTimer=null;} if(!detectVisual)return;detectVisual.classList.remove('active');for(const b of detectBars){b.classList.add('idle');b.style.height='16%';}}
+function detectVisualTick(values){if(!detectVisual||!detectVisual.classList.contains('active'))return; const len=detectBars.length; for(let i=0;i<len;i++){const src=values&&values.length? values[Math.min(values.length-1, Math.floor(i*values.length/len))] : 0; const norm=Math.max(0,Math.min(1,src)); const h=(12 + norm*88).toFixed(1)+'%'; detectBars[i].style.height=h;}}
+
 // Beta 19: no Safari/iOS, getUserMedia pode trocar a categoria de áudio e
 // reduzir a saída do Web Audio. Restaura a reprodução antes do próximo Play.
 let detectorAudioRestoration=Promise.resolve();
@@ -343,6 +357,7 @@ async function finishDetect(cancelled=false){
   const restoring=(async()=>{await releaseDetect(s);await restoreMetronomeOutput()})();
   detectorAudioRestoration=restoring;
   try{await restoring}catch(e){}
+  detectVisualStop();
   detectGo.disabled=false;detectGo.textContent='🎙 Escutar 10 s';
   if(cancelled){detectMessage('Análise interrompida. Áudio restaurado.');return}
   if(!result){detectMessage('Não consegui identificar um pulso confiável. Aproxime o microfone da música e tente novamente.');return}
@@ -367,12 +382,14 @@ async function startDetect(){
     const AudioContextClass=window.AudioContext||window.webkitAudioContext;
     ac=new AudioContextClass();await ac.resume();
     const source=ac.createMediaStreamSource(stream);
+    const analyser=ac.createAnalyser();analyser.fftSize=256;analyser.smoothingTimeConstant=.76;
     const highpass=ac.createBiquadFilter();highpass.type='highpass';highpass.frequency.value=70;
     // ScriptProcessor é mantido pela compatibilidade com Safari/iOS antigos.
     const processor=ac.createScriptProcessor(2048,1,1);
     const mute=ac.createGain();mute.gain.value=0;
-    const s={stream,context:ac,source,highpass,processor,mute,energies:[],sampleRate:ac.sampleRate,progress:null,timer:null};
+    const s={stream,context:ac,source,analyser,highpass,processor,mute,energies:[],sampleRate:ac.sampleRate,progress:null,timer:null};
     detectSession=s;
+    source.connect(analyser);
     source.connect(highpass);highpass.connect(processor);processor.connect(mute);mute.connect(ac.destination);
     processor.onaudioprocess=e=>{
       if(detectSession!==s)return;
@@ -380,9 +397,10 @@ async function startDetect(){
       let sum=0;for(let i=0;i<samples.length;i++)sum+=samples[i]*samples[i];
       s.energies.push(sum/samples.length);
     };
+    const freqData=new Uint8Array(analyser.frequencyBinCount);
     const started=performance.now();
-    detectGo.textContent='Escutando…';detectCancel.hidden=false;
-    s.progress=setInterval(()=>{if(detectSession===s){const left=Math.max(0,Math.ceil(10-(performance.now()-started)/1000));detectMessage('Analisando a pulsação… '+left+' s')}} ,450);
+    detectGo.textContent='Escutando…';detectCancel.hidden=false;detectVisualStart();
+    s.progress=setInterval(()=>{if(detectSession===s){const left=Math.max(0,Math.ceil(10-(performance.now()-started)/1000));detectMessage('Analisando a pulsação… '+left+' s'); analyser.getByteFrequencyData(freqData); const bars=[]; for(let i=0;i<20;i++){const from=Math.floor(i*freqData.length/20),to=Math.max(from+1,Math.floor((i+1)*freqData.length/20)); let peak=0; for(let j=from;j<to;j++){if(freqData[j]>peak)peak=freqData[j];} bars.push(peak/255);} detectVisualTick(bars);}} ,90);
     s.timer=setTimeout(()=>{if(detectSession===s)finishDetect(false)},10000);
   }catch(err){
     try{stream?.getTracks().forEach(t=>t.stop())}catch(e){}
@@ -391,7 +409,8 @@ async function startDetect(){
     // também nesse caminho de erro.
     detectorAudioRestoration=restoreMetronomeOutput();
     try{await detectorAudioRestoration}catch(e){}
-    detectGo.disabled=false;detectGo.textContent='🎙 Escutar 10 s';
+    detectVisualStop();
+  detectGo.disabled=false;detectGo.textContent='🎙 Escutar 10 s';
     detectMessage(err.name==='NotAllowedError'?'Microfone bloqueado. Permita o acesso nas configurações do navegador.':'Não foi possível acessar o microfone: '+(err.message||err));
   }
 }
@@ -408,7 +427,7 @@ $('#detectApply').onclick=()=>{if(detectEstimate){setBpm(detectEstimate);detectM
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&detectSession)finishDetect(true)});
 
 // GF MetronoVoice PWA - Beta 16. Core metronome/audio code above is unchanged.
-const GF_RELEASE = 'beta20-20261124-microfone-ios';
+const GF_RELEASE = 'beta21-20261125-visual-bpm';
 const pwaBanner = $('#gfPwaBanner'), pwaMessage=$('#gfPwaMessage'), pwaAction=$('#gfPwaAction');
 let pwaBusy=false, pwaUpdateWaiting=false;
 function pwaShow(msg,actionLabel){
