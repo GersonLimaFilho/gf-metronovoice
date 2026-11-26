@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="gf-release" content="beta27-20261126-precontagem-zoom">
+<meta name="gf-release" content="beta28-20261126-instalacao-inteligente">
 <meta name="theme-color" content="#111827">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="GF MetronoVoice">
@@ -175,6 +175,22 @@ body{background:radial-gradient(ellipse 75% 30% at 50% 0%,#413500 0,#15120a 45%,
 body.progress-dialog-open{overflow:hidden}
 html{-webkit-text-size-adjust:100%}
 
+
+/* Beta 28: orientacao de instalacao apenas em janela sobreposta, sem aumentar a tela principal. */
+.install-overlay[hidden]{display:none!important}
+.install-overlay{position:fixed;inset:0;z-index:4500;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.87);padding:max(12px,env(safe-area-inset-top)) 14px max(12px,env(safe-area-inset-bottom));overflow:hidden}
+.install-dialog{width:min(100%,390px);max-height:min(90dvh,650px);overflow-y:auto;overscroll-behavior:contain;background:linear-gradient(150deg,#252016,#0f0f0f);color:#fff7d5;border:1px solid #776526;border-radius:18px;padding:18px;box-shadow:0 22px 60px #000b;text-align:center}
+.install-dialog h2{margin:5px 0 9px;font-size:20px;color:#ffcf00;line-height:1.2}
+.install-dialog p{font-size:13px;line-height:1.5;margin:9px 0 13px;color:#e6d9ac}
+.install-icon{font-size:34px;line-height:1.3}
+.install-instructions{padding:12px;text-align:left;font-size:13px;line-height:1.55;background:#181712;border:1px solid #463b1e;border-radius:12px;color:#f7ecca;margin:12px 0}
+.install-instructions ol{margin:4px 0 2px;padding-left:21px}.install-instructions li+li{margin-top:6px}
+.install-buttons{display:grid;gap:8px;margin-top:14px}
+.install-main{border:0;border-radius:11px;background:#ffcf00;color:#12100b;padding:12px 14px;min-height:44px;font-weight:850;font-size:15px}
+.install-later{border:1px solid #66592d;background:#292517;color:#f4e4af;border-radius:11px;padding:11px;min-height:42px;font-weight:750;font-size:13px}
+.install-never{display:flex;align-items:center;justify-content:center;gap:7px;font-size:12px;color:#c8bd98;margin-top:12px;cursor:pointer}
+.install-never input{accent-color:#ffcf00;width:16px;height:16px}
+body.install-dialog-open{overflow:hidden}
 </style>
 </head>
 <body><main class="app">
@@ -200,6 +216,22 @@ html{-webkit-text-size-adjust:100%}
 <div id="gfPwaBanner" class="gf-pwa-status" role="status" aria-live="polite"><span class="msg" id="gfPwaMessage">Preparando o modo offline…</span><button id="gfPwaAction" type="button" hidden>Atualizar</button></div>
 <p class="footer">GF MetronoVoice · desenvolvido por Gerson Lima Filho</p>
 </main>
+
+<!-- Beta 28: convite de instalacao sem ocupar altura na interface principal -->
+<div id="gfInstallOverlay" class="install-overlay" role="dialog" aria-modal="true" aria-labelledby="gfInstallTitle" hidden>
+ <div class="install-dialog">
+  <div class="install-icon" aria-hidden="true">🥁</div>
+  <h2 id="gfInstallTitle">Instale o GF MetronoVoice</h2>
+  <p>Tenha acesso rápido ao metrônomo pela tela inicial, inclusive sem internet depois que o modo offline estiver pronto.</p>
+  <div id="gfInstallInstructions" class="install-instructions"></div>
+  <div class="install-buttons">
+   <button id="gfInstallPrimary" class="install-main" type="button" hidden>📲 Instalar aplicativo</button>
+   <button id="gfInstallLater" class="install-later" type="button">Entendi · Fechar</button>
+  </div>
+  <label class="install-never"><input id="gfInstallNever" type="checkbox"> Não mostrar novamente</label>
+ </div>
+</div>
+
 
 
 <div id="progressModal" class="progress-modal" role="dialog" aria-modal="true" aria-labelledby="progressTitle" hidden>
@@ -583,7 +615,7 @@ $('#detectApply').onclick=()=>{if(detectEstimate){setBpm(detectEstimate);detectM
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&detectSession)finishDetect(true)});
 
 // GF MetronoVoice PWA - Beta 16. Core metronome/audio code above is unchanged.
-const GF_RELEASE = 'beta27-20261126-precontagem-zoom';
+const GF_RELEASE = 'beta28-20261126-instalacao-inteligente';
 const pwaBanner = $('#gfPwaBanner'), pwaMessage=$('#gfPwaMessage'), pwaAction=$('#gfPwaAction');
 let pwaBusy=false, pwaUpdateWaiting=false;
 function pwaShow(msg,actionLabel){
@@ -775,6 +807,82 @@ slEl('setlistFile').onchange=async e=>{
  }catch(err){slMsg('Não foi possível importar: '+err.message)}
 };
 slRender();
+
+
+// Beta 28: convite inteligente. A instalacao exige confirmacao do usuario.
+// Nenhum controle permanente ou espaco adicional e introduzido na tela principal.
+const gfInstallOverlay=document.getElementById('gfInstallOverlay');
+const gfInstallInstructions=document.getElementById('gfInstallInstructions');
+const gfInstallPrimary=document.getElementById('gfInstallPrimary');
+const gfInstallLater=document.getElementById('gfInstallLater');
+const gfInstallNever=document.getElementById('gfInstallNever');
+const gfInstallKey='gf-metronovoice-install-invite-v1';
+let gfDeferredInstall=null, gfInstallShownThisVisit=false;
+const gfIsStandalone=()=>window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
+const gfDevice=()=>{
+ const ua=navigator.userAgent;
+ const apple=/iPad|iPhone|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1);
+ const android=/Android/.test(ua);
+ return {apple,android,desktop:!apple&&!android};
+};
+function gfInstallStore(){try{return localStorage.getItem(gfInstallKey)}catch(e){return null}}
+function gfInstallRemember(value){try{localStorage.setItem(gfInstallKey,value)}catch(e){}}
+function gfInstallClose(){
+ if(gfInstallNever.checked)gfInstallRemember('never');
+ else gfInstallRemember('seen');
+ gfInstallOverlay.hidden=true;
+ document.body.classList.remove('install-dialog-open');
+}
+function gfInstallContent(){
+ const device=gfDevice();
+ if(device.apple){
+   gfInstallInstructions.innerHTML='<strong>📱 iPhone / iPad</strong><ol><li>Toque em <strong>Compartilhar</strong> no navegador.</li><li>Escolha <strong>Adicionar à Tela de Início</strong> (ou “Adicionar à Tela de Início” pelo menu de opções).</li><li>Se aparecer, ative <strong>Abrir como App</strong> e confirme em <strong>Adicionar</strong>.</li></ol>';
+   gfInstallPrimary.hidden=true;
+ }else if(gfDeferredInstall){
+   gfInstallInstructions.innerHTML='<strong>📲 Instalação rápida</strong><br>Toque no botão abaixo e confirme a instalação solicitada pelo navegador.';
+   gfInstallPrimary.hidden=false;
+   gfInstallPrimary.textContent='📲 Instalar aplicativo';
+ }else if(device.android){
+   gfInstallInstructions.innerHTML='<strong>🤖 Android</strong><ol><li>Abra o menu <strong>⋮</strong> do navegador.</li><li>Selecione <strong>Instalar app</strong> ou <strong>Adicionar à tela inicial</strong>.</li><li>Confirme a instalação.</li></ol>';
+   gfInstallPrimary.hidden=true;
+ }else{
+   gfInstallInstructions.innerHTML='<strong>💻 Computador</strong><br>No Chrome ou Edge, use o ícone <strong>Instalar</strong> na barra de endereço, quando disponível, ou procure “Instalar aplicativo” no menu do navegador.';
+   gfInstallPrimary.hidden=true;
+ }
+}
+function gfInstallOpen(){
+ if(gfInstallShownThisVisit||gfIsStandalone()||gfInstallStore())return;
+ gfInstallShownThisVisit=true;
+ gfInstallContent();gfInstallOverlay.hidden=false;
+ document.body.classList.add('install-dialog-open');
+}
+// Registrar cedo para capturar eventos emitidos durante o carregamento da pagina.
+window.addEventListener('beforeinstallprompt',e=>{
+ e.preventDefault();gfDeferredInstall=e;
+ if(!gfInstallOverlay.hidden)gfInstallContent();
+});
+window.addEventListener('appinstalled',()=>{
+ gfInstallRemember('never');gfDeferredInstall=null;
+ gfInstallOverlay.hidden=true;document.body.classList.remove('install-dialog-open');
+});
+gfInstallPrimary.addEventListener('click',async()=>{
+ if(!gfDeferredInstall){gfInstallContent();return}
+ const event=gfDeferredInstall;gfDeferredInstall=null;
+ try{
+   await event.prompt();
+   const choice=await event.userChoice;
+   if(choice&&choice.outcome==='accepted')gfInstallRemember('never');
+   gfInstallClose();
+ }catch(e){gfInstallContent();}
+});
+gfInstallLater.addEventListener('click',gfInstallClose);
+gfInstallOverlay.addEventListener('click',e=>{if(e.target===gfInstallOverlay)gfInstallClose()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!gfInstallOverlay.hidden)gfInstallClose()});
+window.addEventListener('load',()=>{
+ if(gfIsStandalone()||gfInstallStore())return;
+ // Dar tempo ao navegador para oferecer o prompt nativo, sem bloquear uso do app.
+ setTimeout(()=>{if(document.visibilityState==='visible')gfInstallOpen()},1800);
+});
 
 })();
 </script></body></html>
