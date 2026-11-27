@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="gf-release" content="beta38-20261126-multidinamica">
+<meta name="gf-release" content="beta39-20261126-transientes">
 <meta name="theme-color" content="#111827">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="GF MetronoVoice">
@@ -660,7 +660,7 @@ $('#detectApply').onclick=()=>{if(detectEstimate){setBpm(detectEstimate);detectM
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&detectSession)finishDetect(true)});
 
 // GF MetronoVoice PWA - Beta 16. Core metronome/audio code above is unchanged.
-const GF_RELEASE = 'beta38-20261126-multidinamica';
+const GF_RELEASE = 'beta39-20261126-transientes';
 const pwaBanner = $('#gfPwaBanner'), pwaMessage=$('#gfPwaMessage'), pwaAction=$('#gfPwaAction');
 let pwaBusy=false, pwaUpdateWaiting=false;
 function pwaShow(msg,actionLabel){
@@ -981,19 +981,28 @@ async function prStart(cal,diag=false,learn=false){if(pr||prBusy)return; if(dete
  const beat=60/(cal?80:prClamp(Number(prEl('Bpm').value)||80,30,240)),div=cal?1:Number(prEl('Div').value),interval=beat/div,count=cal?8:Math.max(1,Math.floor(Number(prEl('Duration').value)/interval)),first=ac.currentTime+.8+4*beat;
  const outputBus=ac.createDynamicsCompressor();outputBus.threshold.value=-3;outputBus.knee.value=4;outputBus.ratio.value=20;outputBus.attack.value=.001;outputBus.release.value=.045;const referenceGain=ac.createGain();referenceGain.gain.value=Number(prVolume.value)/100;referenceGain.connect(outputBus);outputBus.connect(ac.destination);
  const s={learn,learnStart:ac.currentTime+3,learnNoise:[],learnSamples:[],learnGroups:[[],[],[],[]],learnStage:0,learnLast:-100,deviceLabel:track.label||'',pad:(!learn&&prEl('PadAuto').checked&&prPadProfile&&(!prPadProfile.device||prPadProfile.device===track.label))?prPadProfile:null,rejected:0,diag,diagPeaks:[],diagLast:null,diagInterval:null,diagStrength:0,ac,stream,speaker,outputBus,referenceGain,beat,div,interval,count,first,end:first+count*interval,cal,mode:prEl('Mode').value,sound:prEl('Sound').value,tolerance:Math.min(prEl('Tolerance').value==='custom'?prClamp(Number(prEl('Custom').value)||30,5,150):Number(prEl('Tolerance').value),interval*490),offset:prClamp(Number(prEl('Offset').value)||0,-300,300),hits:new Map(),extras:0,pre:0,next:0,noise:.001,env:0,last:-100,armed:true,level:0,threshold:0,rawCount:0};pr=s;if(learn)prEl('Diag').hidden=false;prEl('Visual').hidden=diag||s.mode==='audio';
- const source=ac.createMediaStreamSource(stream),filter=ac.createBiquadFilter();filter.type='highpass';filter.frequency.value=90;const processor=ac.createScriptProcessor(512,1,1),mute=ac.createGain();mute.gain.value=0;source.connect(filter);filter.connect(processor);processor.connect(mute);mute.connect(ac.destination);s.processor=processor;
- // Short-window transient detector: lower absolute floor, slow noise estimate,
- // fast/slow envelopes and a short refractory period. No beat-position masking.
+ const source=ac.createMediaStreamSource(stream),filter=ac.createBiquadFilter();filter.type='highpass';filter.frequency.value=70;const processor=ac.createScriptProcessor(512,1,1),mute=ac.createGain();mute.gain.value=0;source.connect(filter);filter.connect(processor);processor.connect(mute);mute.connect(ac.destination);s.processor=processor;
+ // Beta 39: energy-rise detector with a short onset window, adaptive quiet floor,
+ // and a refractory interval. Preserve calibration and reporting paths.
+ s.fast=0;s.slow=0;s.prevRms=0;s.prevTexture=0;s.quietRms=.0002;s.armed=true;
  processor.onaudioprocess=e=>{if(pr!==s)return;const a=e.inputBuffer.getChannelData(0),rate=e.inputBuffer.sampleRate||ac.sampleRate;const base=ac.currentTime-a.length/rate;const sens=Number(prEl('Sens').value);let blockPeak=0;
- for(let i=0;i<a.length;i+=32){let peak=0,energy=0,diff=0;for(let j=i;j<Math.min(a.length,i+32);j++){peak=Math.max(peak,Math.abs(a[j]));energy+=a[j]*a[j];if(j>i)diff+=(a[j]-a[j-1])**2;}const texture=Math.sqrt(diff/Math.max(energy,1e-12)),crest=peak/Math.sqrt(Math.max(energy/Math.min(32,a.length-i),1e-12));blockPeak=Math.max(blockPeak,peak);const t=base+i/rate;
- let threshold=Math.max(.0012*Math.pow(35,(100-sens)/99),prEl('Adaptive').checked?s.noise*(1.7+(100-sens)*.025):0);if(s.learn&&s.learnStage===0&&t<s.learnStart&&s.learnNoise.length<6000)s.learnNoise.push(peak);if(s.learn)threshold=Math.max(.00045,s.noise*2);if(s.pad)threshold=Math.max(.00045,s.pad.floor*1.8,(s.pad.weak||s.pad.peak)*.18*Math.pow(2,(65-sens)/35));s.threshold=threshold;
- const rise=peak>Math.max(threshold,s.env*(1.22+(100-sens)*.003));const gap=Number(prEl('Gap').value)/1000;
- if(peak<threshold*.8||peak<s.env*.55)s.armed=true;
- if(rise&&(s.armed||peak>s.env*2.1)&&t-s.last>gap){s.last=t;s.armed=false;if(s.learn){if(t>=s.learnStart&&t-s.learnLast>.35&&s.learnStage<4){s.learnLast=t;const g=s.learnGroups[s.learnStage];g.push({peak,texture,crest});if(g.length>=prLearnStages[s.learnStage][1]){s.learnStage++;s.learnStart=t+3;}} }else if(s.pad&&prPadReject(s.pad,texture,crest)){s.rejected++;}else if(s.diag){s.rawCount++;s.diagInterval=s.diagLast===null?null:Math.round((t-s.diagLast)*1000);s.diagLast=t;s.diagStrength=peak;}else{if(t>=s.first-.35&&t<=s.end+.35)s.rawCount++;prAttack(s,t);}}
- s.env=.92*s.env+.08*peak;
- // Learn quiet floor only; do not let repeated drum attacks raise the threshold.
+ for(let i=0;i<a.length;i+=32){let peak=0,energy=0,diff=0;const n=Math.min(32,a.length-i);for(let j=i;j<i+n;j++){peak=Math.max(peak,Math.abs(a[j]));energy+=a[j]*a[j];if(j>i)diff+=(a[j]-a[j-1])**2;}const rms=Math.sqrt(energy/n),texture=Math.sqrt(diff/Math.max(energy,1e-12)),crest=peak/Math.max(rms,1e-6);blockPeak=Math.max(blockPeak,peak);const t=base+i/rate,dt=n/rate;
+ let threshold=Math.max(.00045*Math.pow(30,(100-sens)/99),prEl('Adaptive').checked?s.noise*(1.35+(100-sens)*.018):0);
+ if(s.learn&&s.learnStage===0&&t<s.learnStart&&s.learnNoise.length<6000)s.learnNoise.push(peak);
+ if(s.learn)threshold=Math.max(.00035,s.noise*1.6);
+ if(s.pad)threshold=Math.max(.00030,Math.min(s.pad.floor,s.noise*2)*1.35,(s.pad.weak||s.pad.peak)*.075*Math.pow(2,(65-sens)/35));
+ s.threshold=threshold;
+ const oldFast=s.fast,oldSlow=s.slow;
+ s.fast+=(rms-s.fast)*(1-Math.exp(-dt/.002));s.slow+=(rms-s.slow)*(1-Math.exp(-dt/.035));
+ const flux=Math.max(0,rms-s.prevRms),brightFlux=Math.max(0,rms*texture-s.prevRms*s.prevTexture);
+ const floor=Math.max(threshold*.16,prEl('Adaptive').checked?s.quietRms*1.5:0);
+ const rise=peak>threshold&&rms>floor&&(flux>Math.max(floor*.35,oldFast*.24)||brightFlux>Math.max(floor*.5,oldFast*.30))&&rms>oldFast*(1.12+(100-sens)*.002);
+ const gap=Number(prEl('Gap').value)/1000;
+ if(rms<Math.max(floor,oldFast*.65)||s.fast<s.slow*.75)s.armed=true;
+ if(rise&&(s.armed||rms>Math.max(oldFast*1.85,oldSlow*1.6))&&t-s.last>=gap){s.last=t;s.armed=false;if(s.learn){if(t>=s.learnStart&&t-s.learnLast>.35&&s.learnStage<4){s.learnLast=t;const g=s.learnGroups[s.learnStage];g.push({peak,texture,crest});if(g.length>=prLearnStages[s.learnStage][1]){s.learnStage++;s.learnStart=t+3;}} }else if(s.pad&&peak>Math.max(s.pad.weak||0,threshold*3)&&prPadReject(s.pad,texture,crest)){s.rejected++;}else if(s.diag){s.rawCount++;s.diagInterval=s.diagLast===null?null:Math.round((t-s.diagLast)*1000);s.diagLast=t;s.diagStrength=peak;}else{if(t>=s.first-.35&&t<=s.end+.35)s.rawCount++;prAttack(s,t);}}
  if(peak<s.noise)s.noise=.96*s.noise+.04*peak;else if(peak<threshold*.8)s.noise=.999*s.noise+.001*peak;
- s.noise=prClamp(s.noise,.00015,.035);
+ if(rms<s.quietRms)s.quietRms=.96*s.quietRms+.04*rms;else if(peak<threshold*.8)s.quietRms=.999*s.quietRms+.001*rms;
+ s.noise=prClamp(s.noise,.00008,.035);s.quietRms=prClamp(s.quietRms,.00003,.02);s.prevRms=rms;s.prevTexture=texture;
  }s.level=Math.max(blockPeak,s.level*.89);};
  const pump=()=>{if(pr!==s)return;const now=ac.currentTime;if(!diag)prVisualTick(s,now);prEl('MicFill').style.width=prClamp((20*Math.log10(Math.max(s.level,.0001))+80)/80*100,0,100)+'%';prEl('MicText').textContent='Pico '+Math.round(20*Math.log10(Math.max(s.level,.0001)))+' dBFS · '+s.rawCount+' ataques captados';if(s.learn){if(s.learnStage===4){prPadFinish(s);return;}const remain=Math.ceil(s.learnStart-now),stage=prLearnStages[s.learnStage],n=s.learnGroups[s.learnStage].length;prEl('PadStatus').textContent=remain>0?'Prepare '+stage[0]+' · aguarde '+remain+' s':'Toque '+stage[1]+' batidas '+stage[0]+' · '+n+'/'+stage[1];prSay(prEl('PadStatus').textContent);if(now>s.learnStart+45){prEnd(false);prEl('PadStatus').textContent='Tempo esgotado. Repita a calibração.';}return;}if(diag){prDiagDraw(s);prSay('Teste silencioso: toque no pad e compare a contagem.');return;}while(s.pre<4&&s.first-(4-s.pre)*beat<now+.12){prTone(s,s.first-(4-s.pre)*beat,s.pre,true);s.pre++;}while(s.next<s.count&&s.first+s.next*interval<now+.12){if(s.mode!=='visual')prTone(s,s.first+s.next*interval,s.next,false);s.next++;}if(now<s.first){prSay('Pré-contagem · aguarde para tocar');}else{prSay(cal?(s.mode==='visual'?'Calibração: toque junto com cada luz.':'Calibração: toque junto com a referência.'):(s.mode==='visual'?'Toque junto com os indicadores luminosos.':'Toque junto com a referência.'));prEl('Count').textContent=s.hits.size+' ataques registrados · '+Math.max(0,Math.ceil(s.end-now))+' s';}if(now>s.end+.4)prEnd(true);};s.timer=setInterval(pump,25);pump();
  }catch(e){if(stream)stream.getTracks().forEach(t=>t.stop());if(ac)try{await ac.close()}catch(_){};detectorAudioRestoration=restoreMetronomeOutput();await detectorAudioRestoration;prSay(prCancel?'Interrompido.':'Não foi possível iniciar: '+e.message);prVisualReset();prControls(false);}finally{prBusy=false;}
