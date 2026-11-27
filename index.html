@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="gf-release" content="beta44-20261127-visual">
+<meta name="gf-release" content="beta45-20261127-visual-completo">
 <meta name="theme-color" content="#111827">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="GF MetronoVoice">
@@ -231,7 +231,28 @@ body.install-dialog-open{overflow:hidden}
 </style>
 <style>
 #speedKinds{border:0;padding:0;margin:10px 0;min-width:0}#speedKinds legend{font-size:12px;color:#dfce92;font-weight:700;margin-bottom:6px}#speedKinds .speed-kinds{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}#speedKinds label{position:relative;min-width:0;cursor:pointer}#speedKinds input{position:absolute;opacity:0;width:1px;height:1px}#speedKinds span{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;min-height:54px;padding:5px 2px;border:1px solid #77632e;background:#262314;border-radius:8px;text-align:center;font-size:12px;color:#eee7cb}#speedKinds small{font-size:11px;line-height:1.3;letter-spacing:.2px}#speedKinds input:checked+span{background:#ffd524;color:#171306;border-color:#ffd524;font-weight:800}#speedKinds input:focus-visible+span{outline:2px solid white;outline-offset:2px}#speedKinds:disabled{opacity:.65}#speedHistory li{margin-bottom:7px}
-</style></head>
+</style><style>
+/* Beta 45 — extend the same gold finish, without changing geometry. */
+#tapBpm,.subdiv3 .option,#play,#stop{
+ background:linear-gradient(155deg,#332919,#0c0b08 72%)!important;
+ border-color:#ba922a!important;color:#fff4d4!important;
+ box-shadow:inset 0 1px 0 #f9d96a66,inset 0 -1px 0 #88600d66;
+ text-shadow:0 1px 3px #000;
+}
+#tapBpm,#play,.subdiv3 .option.selected{
+ background:linear-gradient(155deg,#fff0a0 0%,#ffda54 24%,#e9a900 68%,#b57809 100%)!important;
+ border-color:#ffe278!important;color:#211500!important;
+ box-shadow:inset 0 1px 0 #fff6c9,inset 0 -1px 0 #83530088,0 0 6px #ffc83133;
+ text-shadow:0 1px 0 #fff3b855;
+}
+#tapBpm:active,#tapBpm.tapping,#play:active,.subdiv3 .option:active{
+ background:linear-gradient(155deg,#fff8ce,#ffcb26 70%)!important;
+ box-shadow:inset 0 0 8px #fff0a0;
+}
+#stop:active{background:linear-gradient(155deg,#745017,#2a1c08)!important;border-color:#ffe278!important}
+#tapBpm:focus-visible,.subdiv3 .option:focus-visible,#play:focus-visible,#stop:focus-visible{outline:2px solid #fff0a0;outline-offset:2px}
+</style>
+</head>
 <body><main class="app">
 <header class="brand"><img class="brand-logo" src="assets/gf-metronovoice-logo.png" alt="GF MetronoVoice"><small>SUA VOZ. SEU TEMPO.</small></header>
 <section class="panel tempo"><div class="label">Andamento</div><div class="bpm" id="bpmText">80 <span>BPM</span></div>
@@ -656,7 +677,7 @@ $('#detectApply').onclick=()=>{if(detectEstimate){setBpm(detectEstimate);detectM
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&detectSession)finishDetect(true)});
 
 // GF MetronoVoice PWA - Beta 16. Core metronome/audio code above is unchanged.
-const GF_RELEASE = 'beta44-20261127-visual';
+const GF_RELEASE = 'beta45-20261127-visual-completo';
 const pwaBanner = $('#gfPwaBanner'), pwaMessage=$('#gfPwaMessage'), pwaAction=$('#gfPwaAction');
 let pwaBusy=false, pwaUpdateWaiting=false;
 function pwaShow(msg,actionLabel){

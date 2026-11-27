@@ -2,7 +2,7 @@
    Static assets and seven official WAV files must already exist on the Vercel site.
    Never ship older voices from this ZIP: app fetches deployed official recordings. */
 const PREFIX='gf-metronovoice-';
-const CACHE = PREFIX + 'offline-beta44-20261127';
+const CACHE = PREFIX + 'offline-beta45-20261127';
 const ASSETS=[
  '/', '/index.html', '/manifest.json',
  '/assets/gf-metronovoice-logo.png',
