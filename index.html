@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="gf-release" content="beta45-20261127-visual-completo">
+<meta name="gf-release" content="beta47-20261127-bpm-dourado-3d">
 <meta name="theme-color" content="#111827">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="GF MetronoVoice">
@@ -25,8 +25,9 @@ body{background:radial-gradient(ellipse 75% 30% at 50% 0%,#413500 0,#15120a 45%,
 .brand small{letter-spacing:1.8px;margin:0;font-size:9px;font-weight:800;color:var(--yellow)}
 .panel{background:linear-gradient(160deg,#1b1b1b,#111);border:1px solid var(--border);box-shadow:0 8px 22px #0004;border-radius:18px;padding:14px;margin:0}
 .tempo{flex:none}.label{color:#cbbd85;font-size:10px;letter-spacing:1.5px}
-.bpm{font-size:clamp(53px,11vw,73px);line-height:1;margin:6px 0 0;font-weight:950;letter-spacing:-3px;color:var(--yellow);text-shadow:0 2px 12px #a7830035}
-.bpm span{font-size:13px;color:#e6dbbd;font-weight:850}
+.bpm{display:flex;justify-content:center;align-items:flex-end;gap:8px;line-height:1;margin:5px 0 0}
+.bpmDigits{display:inline-block;font-size:clamp(56px,11.6vw,78px);font-weight:1000;line-height:.88;letter-spacing:-3px;font-variant-numeric:tabular-nums;background:linear-gradient(180deg,#fffbd7 0%,#fff2a8 14%,#ffd447 34%,#f7bb0d 48%,#ca8200 51%,#ffc91c 70%,#fff5b5 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;-webkit-text-stroke:1px rgba(110,75,0,.58);filter:drop-shadow(0 1px 0 rgba(255,248,200,.55)) drop-shadow(0 2px 0 rgba(112,73,0,.95)) drop-shadow(0 4px 9px rgba(0,0,0,.48)) drop-shadow(0 0 10px rgba(255,203,20,.16))}
+.bpm span{font-size:12px;color:#f1e4b8;font-weight:900;letter-spacing:1px;text-shadow:0 1px 0 #3b2a05,0 0 8px rgba(255,209,43,.14);margin-bottom:8px}
 .controls{gap:8px;margin:9px 0 4px;flex-wrap:nowrap}.circle{height:39px;min-width:0;flex:1;max-width:72px;border-radius:10px;background:#282416;border:1px solid #756321;color:#ffdf3e;font-size:17px}
 .tempoInput{margin:4px 0 8px;accent-color:var(--yellow);height:16px}
 .beatrow{gap:8px;margin:10px 0 12px}.beat{min-height:50px;font-size:27px;border-radius:11px;background:#090909;border:1px solid #6b6039;color:#998f70}
@@ -39,7 +40,7 @@ body{background:radial-gradient(ellipse 75% 30% at 50% 0%,#413500 0,#15120a 45%,
 .voice-panel{border:1px solid var(--border);background:#181818;border-radius:14px;overflow:hidden;flex:none}.voice-panel summary{cursor:pointer;display:flex;justify-content:space-between;align-items:center;list-style:none;padding:12px 15px;font-size:13px;color:#f9e6a4;font-weight:800;user-select:none}.voice-panel summary::-webkit-details-marker{display:none}.summary-right{font-size:11px;color:#a99e7d;font-weight:600}.chev{font-size:20px;margin-left:6px;color:var(--yellow)}.voice-panel[open] .chev{display:inline-block;transform:rotate(180deg)}.voice-inner{padding:0 14px 15px}.sample{background:#252116;border-color:#5d512d}.sample.ready{border-color:#d9b500}.sample.ready .state{color:#ffda37}.sample.recording{background:#5b4410;border-color:#ffcf00}.small{background:#282414;border-color:#5d512d;color:#f7e6a5}
 .help-note{font-size:10px;color:#94896a;margin:0 6px}.help-note summary{cursor:pointer}.notice{background:#302918;color:#f3e1b1;margin-top:5px;padding:9px}
 .footer{font-size:10px;color:#7e755b;padding:0;margin:1px 0 0;line-height:1.45}
-@media(max-height:750px){.brand-logo{width:min(57vw,240px);max-height:70px}.panel{padding:10px 13px}.bpm{font-size:56px;margin-top:3px}.beat{min-height:40px;font-size:23px}.beatrow{margin:7px 0 8px}.controls{margin:6px 0 3px}.circle{height:33px}.tempoInput{margin:1px 0 5px}.count-zone{padding-top:7px}.option{padding:8px 5px}.toggle{margin-top:7px}.actions{margin-top:8px}.primary{min-height:42px}.voice-panel summary{padding:10px 14px}}
+@media(max-height:750px){.brand-logo{width:min(57vw,240px);max-height:70px}.panel{padding:10px 13px}.bpm{margin-top:3px}.bpmDigits{font-size:59px}.bpm span{margin-bottom:6px}.beat{min-height:40px;font-size:23px}.beatrow{margin:7px 0 8px}.controls{margin:6px 0 3px}.circle{height:33px}.tempoInput{margin:1px 0 5px}.count-zone{padding-top:7px}.option{padding:8px 5px}.toggle{margin-top:7px}.actions{margin-top:8px}.primary{min-height:42px}.voice-panel summary{padding:10px 14px}}
 @media(max-width:380px){.app{padding-left:9px;padding-right:9px}.panel{padding:12px}.option{font-size:11px}.beat{min-height:45px}.brand-logo{width:min(71vw,275px)}}
 
 
@@ -251,11 +252,56 @@ body.install-dialog-open{overflow:hidden}
 }
 #stop:active{background:linear-gradient(155deg,#745017,#2a1c08)!important;border-color:#ffe278!important}
 #tapBpm:focus-visible,.subdiv3 .option:focus-visible,#play:focus-visible,#stop:focus-visible{outline:2px solid #fff0a0;outline-offset:2px}
+
+/* Beta 46: compact portrait layout; keep scrolling available for expanded panels. */
+@media (max-width:480px) and (orientation:portrait) {
+ .app{min-height:100svh;gap:5px;padding:calc(env(safe-area-inset-top,0px) + 4px) 10px calc(env(safe-area-inset-bottom,0px) + 4px)}
+ .brand-logo{width:min(64vw,260px);max-height:58px}
+ .app>.tempo{padding:8px 12px}
+ .app .actions{flex-direction:row;gap:8px;margin-top:7px}
+ .app .actions>#play,.app .actions>#stop{flex:1;min-width:0;min-height:44px;padding:7px 8px}
+ .app .progress-launch{margin:2px 0 0}
+ .app .footer{margin:0;line-height:1.25}
+ .app .status{margin-top:4px;line-height:1.3}
+ .app .beatrow{margin:5px 0 6px}
+ .app .count-zone{padding-top:6px}
+ .app .subdiv{margin-top:5px}
+ .app .compact-settings{margin-top:5px;gap:5px}
+ .app .volumes{margin-top:5px}
+ .app .syllable-details{margin-top:4px}
+ .app .detect-row{margin:3px 0 0}
+ .app .detect-row + .detect-panel + .label{margin-top:6px!important}
+ .app .gf-pwa-status{margin:0;padding:5px 7px}
+}
+@media (max-width:480px) and (max-height:740px) and (orientation:portrait) {
+ .app{gap:4px}
+ .brand-logo{max-height:46px;width:min(55vw,225px)}
+ .app .bpm{margin-top:2px}.app .bpmDigits{font-size:50px}.app .bpm span{margin-bottom:5px;font-size:11px}
+ .app .beat{min-height:36px;font-size:22px}
+ .app .controls{margin:4px 0 2px}
+ .app .tempoInput{margin:0 0 3px}
+ .app .subdiv3 .option{min-height:34px;padding:5px 2px}
+ .app .syllable-details summary{padding:4px 8px}
+ .app .progress-launch button{min-height:42px;height:42px}
+}
+@media (max-width:480px) and (max-height:680px) and (orientation:portrait) {
+ .app{gap:3px}
+ .brand-logo{max-height:38px}
+ .app>.tempo{padding:6px 10px}
+ .app .bpmDigits{font-size:44px}.app .bpm span{margin-bottom:4px;font-size:10px}
+ .app .beat{min-height:32px;font-size:21px}
+ .app .beatrow{margin:3px 0 4px}
+ .app .count-zone{padding-top:4px}
+ .app .compact-settings{margin-top:3px}
+ .app .volumes{margin-top:3px}
+ .app .detect-row + .detect-panel + .label{margin-top:4px!important}
+ .app .actions{margin-top:5px}
+}
 </style>
 </head>
 <body><main class="app">
 <header class="brand"><img class="brand-logo" src="assets/gf-metronovoice-logo.png" alt="GF MetronoVoice"><small>SUA VOZ. SEU TEMPO.</small></header>
-<section class="panel tempo"><div class="label">Andamento</div><div class="bpm" id="bpmText">80 <span>BPM</span></div>
+<section class="panel tempo"><div class="label">Andamento</div><div class="bpm" id="bpmText"><strong class="bpmDigits">80</strong> <span>BPM</span></div>
 <div class="controls"><button class="circle" id="minus5" aria-label="Diminuir 5 BPM">−5</button><button class="circle" id="minus1" aria-label="Diminuir 1 BPM">−</button><button class="circle tap-btn" id="tapBpm" aria-label="TAP BPM: toque no ritmo da música" title="Toque no ritmo da música para calcular o BPM">TAP</button><button class="circle" id="plus1" aria-label="Aumentar 1 BPM">+</button><button class="circle" id="plus5" aria-label="Aumentar 5 BPM">+5</button></div>
 <input id="bpmRange" class="tempoInput" type="range" min="30" max="240" step="1" value="80" aria-label="BPM">
 <div class="detect-row"><button id="detectToggle" class="detect-trigger" type="button" aria-expanded="false" aria-controls="detectPanel">Detectar BPM</button></div>
@@ -356,7 +402,7 @@ const settingsKey='gf-metronovoice-settings-v1';
 const status=t=>$('#transportStatus').textContent=t;
 const voiceStatus=t=>$('#officialVoiceStatus').textContent=t;
 function saveSettings(){try{localStorage.setItem(settingsKey,JSON.stringify({bpm,mode,audioMode:$('#audioMode').value,accent:$('#accent').checked,voiceVolume:$('#voiceVolume').value,clickVolume:$('#clickVolume').value,iVolume:$('#iVolume').value,aVolume:$('#aVolume').value}))}catch(e){}}
-function setBpm(v){bpm=Math.max(30,Math.min(240,Math.round(Number(v)||80)));$('#bpmText').innerHTML=bpm+' <span>BPM</span>';$('#bpmRange').value=bpm;saveSettings()}
+function setBpm(v){bpm=Math.max(30,Math.min(240,Math.round(Number(v)||80)));$('#bpmText').innerHTML='<strong class="bpmDigits">'+bpm+'</strong> <span>BPM</span>';$('#bpmRange').value=bpm;saveSettings()}
 // Treino progressivo: usa o mesmo relógio musical da Beta 25; não altera os samples.
 const progressKey='gf-metronovoice-progress-v1';
 let progressive={enabled:false,start:60,target:120,step:5,bars:4,completedBars:0};
@@ -677,7 +723,7 @@ $('#detectApply').onclick=()=>{if(detectEstimate){setBpm(detectEstimate);detectM
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&detectSession)finishDetect(true)});
 
 // GF MetronoVoice PWA - Beta 16. Core metronome/audio code above is unchanged.
-const GF_RELEASE = 'beta45-20261127-visual-completo';
+const GF_RELEASE = 'beta46-20261127-compacto-iphone';
 const pwaBanner = $('#gfPwaBanner'), pwaMessage=$('#gfPwaMessage'), pwaAction=$('#gfPwaAction');
 let pwaBusy=false, pwaUpdateWaiting=false;
 function pwaShow(msg,actionLabel){
