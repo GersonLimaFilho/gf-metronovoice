@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="gf-release" content="beta41-20261126-gf-speed-rudimentos">
+<meta name="gf-release" content="beta42-20261127-gf-speed-correcao">
 <meta name="theme-color" content="#111827">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="GF MetronoVoice">
@@ -618,7 +618,7 @@ $('#detectApply').onclick=()=>{if(detectEstimate){setBpm(detectEstimate);detectM
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&detectSession)finishDetect(true)});
 
 // GF MetronoVoice PWA - Beta 16. Core metronome/audio code above is unchanged.
-const GF_RELEASE = 'beta41-20261126-gf-speed-rudimentos';
+const GF_RELEASE = 'beta42-20261127-gf-speed-correcao';
 const pwaBanner = $('#gfPwaBanner'), pwaMessage=$('#gfPwaMessage'), pwaAction=$('#gfPwaAction');
 let pwaBusy=false, pwaUpdateWaiting=false;
 function pwaShow(msg,actionLabel){
@@ -887,7 +887,6 @@ window.addEventListener('load',()=>{
  setTimeout(()=>{if(document.visibilityState==='visible')gfInstallOpen()},1800);
 });
 
-})();
 // GF Speed: independent, silent 60-second attack counter.
 (()=>{
  const el=id=>document.getElementById('speed'+id), modal=el('Modal');
@@ -907,4 +906,5 @@ window.addEventListener('load',()=>{
  el('Kinds').addEventListener('change',draw);el('Open').onclick=()=>{if(running)stop();document.activeElement?.blur();modal.hidden=false;draw()};el('Close').onclick=()=>{finish(false);modal.hidden=true};el('Start').onclick=begin;el('Stop').onclick=()=>finish(false);el('Sens').oninput=()=>el('SensValue').textContent=el('Sens').value+'%';el('Save').onclick=()=>{if(result===null)return;history.unshift({count:result.count,kind:result.kind,date:new Date().toISOString()});history=history.slice(0,100);const ok=persist();result=null;draw();if(ok)el('Status').textContent='Resultado salvo neste dispositivo.'};el('Clear').onclick=()=>{if(confirm('Apagar todo o histórico e recorde do GF Speed?')){history=[];persist();draw()}};modal.addEventListener('click',e=>{if(e.target===modal)el('Close').click()});document.addEventListener('visibilitychange',()=>{if(document.hidden&&(session||busy))finish(false)});draw();controls(false);
 })();
 
+})();
 </script></body></html>
